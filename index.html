@@ -86014,9 +86014,7 @@ function renderKid(){
   if(V.tab==='sum')return wrap(h+renderSummary(k));
   if(V.tab==='exams')return wrap(h+renderExams(k));
   h+=`<div class="weeknav">${idx>0?`<button class="btn sm" data-date="${plans[idx-1].days[0].date}">→ الأسبوع السابق</button>`:''}
-     <span>${fmt(plan.from)} – ${fmt(plan.to)}</span>
-     ${(plan.pdfs||[]).map(p=>`<button class="btn sm" data-act="viewPdf" data-id="${esc(p.id)}" data-name="${esc(p.name)}">📄 ${p.lang==='en'?'English plan':'الخطة الأصلية'}</button>`).join('')}
-     ${idx<plans.length-1?`<button class="btn sm" data-date="${plans[idx+1].days[0].date}">الأسبوع التالي ←</button>`:''}</div>`;
+     <span>${fmt(plan.from)} – ${fmt(plan.to)}</span>     ${idx<plans.length-1?`<button class="btn sm" data-date="${plans[idx+1].days[0].date}">الأسبوع التالي ←</button>`:''}</div>`;
   if(V.tab==='week')return wrap(h+renderWeek(k,plan));
   if(V.tab==='table')return wrap(h+renderTimetable(k,plan));
   const t=todayKey();
