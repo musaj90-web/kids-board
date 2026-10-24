@@ -207,6 +207,8 @@ td.holcell .holsun{font-size:48px}
 @media(max-width:700px){.xcard{flex-wrap:wrap}.xgrade{width:100%;flex-direction:row;justify-content:flex-start}}
 .repl{display:block;font-size:12px;color:var(--muted)}
 .setavg{border:2px solid var(--g);color:var(--g);border-radius:99px;padding:0 12px;font-weight:800}
+.cloud{font-size:20px;opacity:.45}.cloud.on{opacity:1}
+.cloudin{display:block;width:100%;margin:8px 0;text-align:left}
 @media print{.top,.tabs,.weeknav,.days,.kidhead,.tt-actions,#layer,.toast{display:none!important}body{background:#fff}main{padding:0;max-width:none}.tt{box-shadow:none;padding:0}
   @page{size:A4 landscape;margin:8mm}.ttc{min-height:82px}.ttic{font-size:32px}.abc{font-size:24px}.tthead{margin-bottom:8px}.tthead h1{font-size:28px}.tthead p{font-size:16px}.ttdeco{font-size:44px}.ttday span{font-size:24px}.ttday{font-size:18px}.ttgrid{gap:6px}.ttc,.tth,.ttday{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 </style>
@@ -85879,7 +85881,7 @@ function fixHolidayDay(d){
 function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.kids){const d=defaults();const r=Object.assign(d,s);r.kids.forEach(k=>{if(!r.plans[k.id])r.plans[k.id]=[];if(!k.grade)k.grade=k.id==='ali'?4:k.id==='bader'?3:0;if(!k.books)k.books=k.id==='ali'?['Top Goal','Family and Friends']:k.id==='bader'?['We Can','Family and Friends']:[]});let ch=false;const mig=!r.mig3;(r.examSets||[]).forEach(s=>{if(s.period===undefined){s.period=guessPeriod(s.title);ch=true}(s.exams||[]).forEach(e=>{const o=`ex|${s.kid}|${e.date}|${subjectKey(e.subject)}`,n=`ex|${s.kid}|${s.id}|${e.date}|${subjectKey(e.subject)}`;if(r.grades&&r.grades[o]&&!r.grades[n]){r.grades[n]=r.grades[o];delete r.grades[o];ch=true}})});Object.values(r.plans).forEach(ps=>ps.forEach(pl=>(pl.days||[]).forEach(d=>{if(fixHolidayDay(d))ch=true;if(fixExamPeriods(d))ch=true;if(mig)(d.periods||[]).forEach(p=>{if(p.test&&!/quiz|إملاء|املاء/i.test((p.lesson||'')+' '+(p.homework||''))){delete p.test;ch=true}})})));if(mig){r.mig3=1;ch=true}if(ch)try{localStorage.setItem(KEY,JSON.stringify(r))}catch(e){}return r}}catch(e){console.error(e);LOAD_ERR=e;try{const raw=localStorage.getItem(KEY);if(raw)localStorage.setItem(KEY+'.rescue',raw)}catch(_){}}return defaults()}
 var LOAD_ERR=null;
 let S=load();
-function save(){if(LOAD_ERR){toast('⚠️ تعذّر تحميل البيانات المحفوظة — لم يتم الحفظ');return}try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('تعذّر الحفظ!')}}
+function save(){if(LOAD_ERR){toast('⚠️ تعذّر تحميل البيانات المحفوظة — لم يتم الحفظ');return}try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('تعذّر الحفظ!')}if(typeof cloudPush==='function')cloudPush()}
 let V={name:'home',kid:null,tab:'today',date:null};
 let parentOK=false;
 
@@ -85932,6 +85934,7 @@ function renderTop(){
     `<button class="brand" data-nav="home">📚 لوحة الواجبات</button>
      ${S.kids.map(k=>`<button class="kidbtn ${V.name==='kid'&&V.kid===k.id?'on':''}" style="--kid:${k.color}" data-kid="${k.id}">${k.emoji} ${esc(k.name)}</button>`).join('')}
      <div class="sp"></div>
+     ${typeof cloudBadge==='function'?cloudBadge():''}
      <button class="btn" data-act="${parentOK?'parent':'askPin'}">🔒 ولي الأمر</button>`;
 }
 
@@ -86156,6 +86159,7 @@ function renderParent(){
   h+=`</div>`;
   h+=`<div class="card"><h3>⚙️ الإعدادات</h3>${S.kids.map(k=>`<div class="row"><label>الاسم<input id="nm_${k.id}" value="${esc(k.name)}"></label><label>الرمز<input id="em_${k.id}" value="${esc(k.emoji)}" style="width:70px;text-align:center"></label><label>اللون<input type="color" id="cl_${k.id}" value="${k.color}" style="width:60px;padding:2px"></label><label style="flex:1;min-width:200px">كتب الإنجليزي (افصل بفاصلة)<input id="bk_${k.id}" dir="ltr" value="${esc((k.books||[]).join(', '))}"></label><label>الصف<select id="gr_${k.id}">${GRADE_WORDS.map((w,i)=>`<option value="${i+1}" ${+k.grade===i+1?'selected':''}>${w}</option>`).join('')}</select></label></div>`).join('')}
     <div class="row"><label>رمز ولي الأمر الجديد<input id="newPin" type="password" inputmode="numeric" placeholder="اتركه فارغاً بلا تغيير"></label><button class="btn primary" data-act="saveSettings">حفظ الإعدادات</button></div></div>`;
+  if(typeof cloudCard==='function')h+=cloudCard();
   h+=`<div class="card"><h3>💾 نسخة احتياطية</h3><p class="hint">البيانات محفوظة في هذا المتصفح. خذ نسخة احتياطية كل فترة.</p><div class="row"><button class="btn" data-act="export">تنزيل نسخة احتياطية</button><label>استعادة من ملف<input type="file" id="bkFile" accept=".json"></label><button class="btn" data-act="import">استعادة</button></div></div>`;
   return h+`</div></div>`;
 }
@@ -86636,6 +86640,74 @@ function render(){
 }
 render();
 setInterval(()=>{if(V.name!=='parent')render()},10*60*1000);
+</script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+<script>
+/* ================= cloud sync (Firebase Realtime Database) ================= */
+// Paste the web-app config from Firebase console → Project settings → Your apps. null = local only (as before).
+const FB_CONFIG={apiKey:'AIzaSyDT66kuHy9UCZoDncIJPERPY-0KIXnnmHY',authDomain:'kids-board-2026.firebaseapp.com',databaseURL:'https://kids-board-2026-default-rtdb.europe-west1.firebasedatabase.app',projectId:'kids-board-2026'};
+// /family/state = everything except S.done, as one JSON string; /family/done/<key> = true per ticked item (so ticks from different devices don't overwrite each other)
+const CLOUD={ref:null,user:null,ready:false,online:false,state:null,done:{},pending:false};
+const encK=k=>encodeURIComponent(k).replace(/\./g,'%2E');
+const hasPlans=s=>!!s&&Object.values(s.plans||{}).some(p=>p&&p.length);
+function splitS(){const{done,...rest}=S;return{rest:JSON.stringify(rest),done:done||{}}}
+function localSave(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+function cloudPush(){
+  if(!CLOUD.ready)return;
+  const{rest,done}=splitS(),u={};
+  if(rest!==CLOUD.state){u.state=rest;CLOUD.state=rest}
+  for(const k in done)if(!CLOUD.done[k])u['done/'+encK(k)]=true;
+  for(const k in CLOUD.done)if(!done[k])u['done/'+encK(k)]=null;
+  CLOUD.done=Object.assign({},done);
+  if(Object.keys(u).length)CLOUD.ref.update(u).catch(e=>{console.error(e);toast('⚠️ تعذّرت المزامنة')});
+}
+function applyState(v){CLOUD.state=v;S=Object.assign(defaults(),JSON.parse(v),{done:S.done});LOAD_ERR=null;localSave()}
+function applyDone(v){const m={};for(const k in v||{})m[decodeURIComponent(k)]=true;CLOUD.done=Object.assign({},m);S.done=m;localSave()}
+// don't redraw under the parent while they type or review a PDF; retry shortly
+function cloudBusy(){const a=document.activeElement;return document.getElementById('layer').innerHTML.trim()!==''||(V.name==='parent'&&a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))}
+function cloudRefresh(){
+  if(cloudBusy()){CLOUD.pending=true;return}
+  CLOUD.pending=false;
+  if(V.name==='kid'){if(!kidById(V.kid))V={name:'home'};else if(V.date&&!planFor(V.kid,V.date))V.date=null}
+  render();
+}
+setInterval(()=>{if(CLOUD.pending)cloudRefresh()},3000);
+async function cloudStart(user){
+  CLOUD.user=user;CLOUD.ready=false;CLOUD.ref=firebase.database().ref('family');renderTop();
+  const v=(await CLOUD.ref.once('value')).val()||{},remote=v.state?JSON.parse(v.state):null;
+  if(hasPlans(S)&&!hasPlans(remote)){
+    // first device with real data seeds the cloud
+    CLOUD.state=v.state||null;CLOUD.done={};for(const k in v.done||{})CLOUD.done[decodeURIComponent(k)]=true;
+    CLOUD.ready=true;cloudPush();toast('☁️ تم رفع بيانات هذا الجهاز إلى السحابة');
+  }else{
+    if(hasPlans(S))try{if(!localStorage.getItem(KEY+'.beforeCloud'))localStorage.setItem(KEY+'.beforeCloud',JSON.stringify(S))}catch(e){}
+    if(v.state)applyState(v.state);applyDone(v.done);CLOUD.ready=true;
+  }
+  CLOUD.ref.child('state').on('value',s=>{const x=s.val();if(x&&x!==CLOUD.state){applyState(x);cloudRefresh()}});
+  CLOUD.ref.child('done').on('value',s=>{applyDone(s.val());cloudRefresh()});
+  cloudRefresh();
+}
+function cloudStop(){if(CLOUD.ref){CLOUD.ref.child('state').off();CLOUD.ref.child('done').off()}Object.assign(CLOUD,{ref:null,user:null,ready:false,state:null,done:{}});renderTop()}
+function cloudLogin(){
+  document.getElementById('layer').innerHTML=`<div class="overlay"><div class="modal"><h3>☁️ تسجيل الدخول</h3><p class="hint">سجّل الدخول بحساب العائلة مرة واحدة على هذا الجهاز لتتزامن الواجبات بين كل الأجهزة.</p><input id="cEmail" class="cloudin" type="email" dir="ltr" placeholder="Email" autocomplete="username"><input id="cPass" class="cloudin" type="password" dir="ltr" placeholder="Password" autocomplete="current-password"><div class="mrow"><button class="btn primary" id="cGo">دخول</button></div></div></div>`;
+  const go=()=>{const e=document.getElementById('cEmail').value.trim(),p=document.getElementById('cPass').value;if(!e||!p)return toast('أدخل البريد وكلمة المرور');
+    firebase.auth().signInWithEmailAndPassword(e,p).then(()=>closeModal()).catch(err=>{console.error(err);toast(/network/.test(err.code)?'لا يوجد اتصال بالإنترنت':'البريد أو كلمة المرور غير صحيحة')})};
+  document.getElementById('cGo').onclick=go;
+  document.getElementById('cPass').addEventListener('keydown',e=>{if(e.key==='Enter')go()});
+}
+function cloudBadge(){if(!FB_CONFIG)return'';const ok=CLOUD.user&&CLOUD.online;return`<span class="cloud ${ok?'on':''}" title="${ok?'متزامن':'غير متصل — تتم المزامنة عند عودة الاتصال'}">${ok?'☁️':'⚠️'}</span>`}
+function cloudCard(){if(!FB_CONFIG)return'';return`<div class="card"><h3>☁️ المزامنة</h3><p class="hint">${CLOUD.user?`متصل بحساب <b dir="ltr">${esc(CLOUD.user.email)}</b> — ${CLOUD.online?'✅ البيانات متزامنة مع كل الأجهزة':'⚠️ غير متصل بالإنترنت الآن'}`:'غير مسجّل الدخول'}</p>${CLOUD.user?'<button class="btn danger" id="cOut">تسجيل الخروج من هذا الجهاز</button>':''}</div>`}
+document.addEventListener('click',e=>{if(e.target.closest('#cOut')&&confirm('تسجيل الخروج من المزامنة على هذا الجهاز؟'))firebase.auth().signOut()});
+if(FB_CONFIG){
+  if(typeof firebase==='undefined')toast('⚠️ تعذّر الاتصال بالسحابة — يعمل التطبيق بدون مزامنة');
+  else{
+    firebase.initializeApp(FB_CONFIG);
+    firebase.database().ref('.info/connected').on('value',s=>{CLOUD.online=!!s.val();renderTop()});
+    firebase.auth().onAuthStateChanged(u=>{if(u)cloudStart(u).catch(e=>{console.error(e);toast('⚠️ تعذّرت المزامنة: '+(e.code||e.message))});else{cloudStop();cloudLogin()}});
+  }
+}
 </script>
 </body>
 </html>
