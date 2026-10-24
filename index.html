@@ -209,7 +209,8 @@ td.holcell .holsun{font-size:48px}
 .setavg{border:2px solid var(--g);color:var(--g);border-radius:99px;padding:0 12px;font-weight:800}
 .cloud{font-size:20px;opacity:.45}.cloud.on{opacity:1}
 .kidhead small{display:block}
-.weekbadge{display:inline-block;margin-top:4px;background:var(--kid);color:#fff;border-radius:99px;padding:3px 14px;font-size:18px;font-weight:800}
+.weekbadge{display:inline-block;margin-top:4px;background:var(--kid);color:#fff;border:0;border-radius:99px;padding:3px 14px;font:inherit;font-size:18px;font-weight:800;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.18);transition:transform .15s}
+.weekbadge:hover,.weekbadge:active{transform:scale(1.05)}
 /* ---------- mobile / stacked layout ---------- */
 body{overflow-x:clip}
 .kids{grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr))}
@@ -86000,7 +86001,7 @@ function renderHome(){
 
 /* ---------- kid ---------- */
 function kidHead(k,plan){
-  return `<div class="kidhead"><div class="avatar sm">${k.emoji}</div><div><h2>${esc(k.name)}</h2>${plan?`<small>${esc(plan.grade)}</small><span class="weekbadge">🗓️ ${esc(plan.weekLabel||('الأسبوع '+plan.week))}</span>`:''}</div><div class="sp"></div>
+  return `<div class="kidhead"><div class="avatar sm">${k.emoji}</div><div><h2>${esc(k.name)}</h2>${plan?`<small>${esc(plan.grade)}</small><button class="weekbadge" data-act="viewPdf" title="عرض الخطة الأسبوعية">🗓️ ${esc(plan.weekLabel||('الأسبوع '+plan.week))}${(plan.pdfs||[]).length?' 📄':''}</button>`:''}</div><div class="sp"></div>
   <div class="tabs"><button class="tab ${V.tab==='today'?'on':''}" data-tab="today">📅 اليوم</button><button class="tab ${V.tab==='week'?'on':''}" data-tab="week">🗓️ الأسبوع</button><button class="tab ${V.tab==='table'?'on':''}" data-tab="table">📋 الجدول</button><button class="tab ${V.tab==='exams'?'on':''}" data-tab="exams">📝 الاختبارات${upcomingExams(k.id,todayKey(),7).length?'<i class="dot"></i>':''}</button><button class="tab ${V.tab==='sum'?'on':''}" data-tab="sum">📊 الملخص</button></div></div>`;
 }
 function renderKid(){
@@ -86267,15 +86268,21 @@ async function storePdf(id,buf){await pdfCache(id,buf);const r=cloudPdfRef(id);i
 async function loadPdf(id){let b=await pdfCache(id);if(b)return b;const r=cloudPdfRef(id);if(!r)return null;const v=(await r.once('value')).val();if(!v)return null;b=b64dec(v);pdfCache(id,b);return b}
 function dropPdf(id){const r=cloudPdfRef(id);if(r)r.remove();pdfDB().then(db=>db.transaction('pdf','readwrite').objectStore('pdf').delete(id)).catch(()=>{})}
 async function attachPdfs(kid,plan,list){for(const x of list){const id=`${kid}_${plan.from}_${x.lang}`;await storePdf(id,x.buf);plan.pdfs=(plan.pdfs||[]).filter(p=>p.lang!==x.lang).concat({id,lang:x.lang,name:x.name})}}
-async function viewPdf(id,name){
-  document.getElementById('layer').innerHTML=`<div class="overlay"><div class="modal big pdfv"><div class="kidhead"><h3>📄 <span dir="auto">${esc((name||'الخطة').replace(/\.pdf$/i,''))}</span></h3><div class="sp"></div><a class="btn" id="pdfOpen" target="_blank" rel="noopener" hidden>↗️ فتح في نافذة</a><button class="btn" data-act="closeModal">إغلاق</button></div><div id="pdfPages" class="hint">⏳ جاري تحميل الملف...</div></div></div>`;
+let PDFV=[];
+// list: the week's plan files [{id,lang,name}]; i: which one to show (Arabic / English tabs)
+async function viewPdf(list,i=0){
+  PDFV=list;const cur=list[i];
+  const tabs=list.length>1?`<div class="tabs">${list.map((p,j)=>`<button class="tab ${j===i?'on':''}" data-act="pdfTab" data-i="${j}">${p.lang==='en'?'🇬🇧 English':'📗 العربية'}</button>`).join('')}</div>`
+    :`<h3>📄 <span dir="auto">${cur?esc(cur.name.replace(/\.pdf$/i,'')):'الخطة الأسبوعية'}</span></h3>`;
+  document.getElementById('layer').innerHTML=`<div class="overlay"><div class="modal big pdfv"><div class="kidhead">${tabs}<div class="sp"></div><a class="btn" id="pdfOpen" target="_blank" rel="noopener" hidden>↗️ فتح في نافذة</a><button class="btn" data-act="closeModal">إغلاق</button></div><div id="pdfPages" class="hint">${cur?'⏳ جاري تحميل الملف...':'لم يُرفق ملف الخطة لهذا الأسبوع بعد.<br>ولي الأمر: من <b>وضع ولي الأمر 🔒</b> اضغط «📎 إرفاق ملفات PDF الأصلية».'}</div></div></div>`;
+  if(!cur)return;const id=cur.id,box0=document.getElementById('pdfPages');
   try{
-    const buf=await loadPdf(id);if(!buf)throw new Error('الملف غير موجود. أرفقه من وضع ولي الأمر 🔒');
+    const buf=await loadPdf(id);if(!box0.isConnected)return;/* closed or switched tab meanwhile */if(!buf)throw new Error('الملف غير موجود. أرفقه من وضع ولي الأمر 🔒');
     const a=document.getElementById('pdfOpen');if(a){a.href=URL.createObjectURL(new Blob([buf],{type:'application/pdf'}));a.hidden=false}
     // disableFontFace: draw glyphs from the embedded fonts directly; handing the converted Arabic fonts to the browser drops letters
     const doc=await pdfjsLib.getDocument({data:buf.slice(),isEvalSupported:false,disableFontFace:true}).promise,box=document.getElementById('pdfPages');if(!box)return;box.textContent='';box.className='';
     for(let n=1;n<=doc.numPages;n++){if(!box.isConnected)return;const pg=await doc.getPage(n),sc=(box.clientWidth||800)/pg.getViewport({scale:1}).width*Math.min(window.devicePixelRatio||1,2),vp=pg.getViewport({scale:sc}),c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;c.className='pdfpage';box.appendChild(c);await pg.render({canvasContext:c.getContext('2d'),viewport:vp}).promise}
-  }catch(e){const box=document.getElementById('pdfPages');if(box)box.textContent='⚠️ '+(e.message||e)}
+  }catch(e){if(box0.isConnected)box0.textContent='⚠️ '+(e.message||e)}
 }
 function joinItems(arr){
   if(!arr.length)return'';
@@ -86667,7 +86674,9 @@ async function act(a,el){
   if(a==='cancelAll'){QUEUE=[];QTOTAL=0;QSAVED=0;PENDING=null;return closeModal()}
   if(a==='addRow'){collectReview();const d=PENDING.days[+el.dataset.d];d.periods.push({n:(d.periods.at(-1)?.n||0)+1,subject:'',lesson:'',homework:''});return drawReview()}
   if(a==='delRow'){collectReview();PENDING.days[+el.dataset.d].periods.splice(+el.dataset.p,1);return drawReview()}
-  if(a==='viewPdf')return viewPdf(el.dataset.id,el.dataset.name);
+  if(a==='viewPdf'){const p=planFor(V.kid,V.date),list=((p&&p.pdfs)||[]).slice().sort((x,y)=>x.lang==='ar'?-1:y.lang==='ar'?1:0);
+    return viewPdf(list,Math.max(0,list.findIndex(x=>x.id===el.dataset.id)))}
+  if(a==='pdfTab')return viewPdf(PDFV,+el.dataset.i);
   if(a==='pickAttach'){const i=document.getElementById('pdfAttach');i.value='';return i.click()}
   if(a==='delPlan'){if(!confirm('حذف هذه الخطة؟'))return;const k=el.dataset.kid2;((S.plans[k].find(x=>x.from===el.dataset.from)||{}).pdfs||[]).forEach(p=>dropPdf(p.id));S.plans[k]=S.plans[k].filter(x=>x.from!==el.dataset.from);save();return render()}
   if(a==='addTask'){
