@@ -215,7 +215,11 @@ body{overflow-x:clip}
 .kids{grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr))}
 .cols>div{min-width:0}
 .weeknav{flex-wrap:wrap}
-@media(max-width:900px){.cols{gap:0}.cols>div:last-child{order:-1}}
+.modal.pdfv{width:min(1000px,96vw)}
+.pdfpage{display:block;width:100%;height:auto;margin-bottom:10px;border:1px solid var(--line);border-radius:8px;background:#fff}
+/* stacked day view: classes → homework → هذا الأسبوع */
+.wk-end{display:none}
+@media(max-width:900px){.cols{gap:0}.cols.dayc>div:last-child{order:-1}.wk-side{display:none}.wk-end{display:block}}
 @media(max-width:640px){
   main{padding:12px}
   .top{padding:8px 12px;gap:6px}
@@ -247,6 +251,7 @@ body{overflow-x:clip}
 <main id="app"></main>
 <div id="layer"></div>
 <input type="file" id="pdfFiles" accept=".pdf,.json,application/pdf" multiple hidden>
+<input type="file" id="pdfAttach" accept=".pdf,application/pdf" multiple hidden>
 <div id="dropHint">📄 أفلت ملفات الخطة هنا</div>
 <!-- pdf.js v3.11.174 (Mozilla, Apache-2.0) bundled for offline PDF reading -->
 <script>/**
@@ -85907,7 +85912,13 @@ function fixHolidayDay(d){
   d.holiday=true;d.note=d.note&&H.test(d.note)?d.note:(ar||hits[0].lesson||hits[0].homework||'إجازة');
   d.periods.forEach(p=>{p.lesson='';p.homework=''});return true;
 }
-function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.kids){const d=defaults();const r=Object.assign(d,s);r.kids.forEach(k=>{if(!r.plans[k.id])r.plans[k.id]=[];if(!k.grade)k.grade=k.id==='ali'?4:k.id==='bader'?3:0;if(!k.books)k.books=k.id==='ali'?['Top Goal','Family and Friends']:k.id==='bader'?['We Can','Family and Friends']:[]});let ch=false;const mig=!r.mig3;(r.examSets||[]).forEach(s=>{if(s.period===undefined){s.period=guessPeriod(s.title);ch=true}(s.exams||[]).forEach(e=>{const o=`ex|${s.kid}|${e.date}|${subjectKey(e.subject)}`,n=`ex|${s.kid}|${s.id}|${e.date}|${subjectKey(e.subject)}`;if(r.grades&&r.grades[o]&&!r.grades[n]){r.grades[n]=r.grades[o];delete r.grades[o];ch=true}})});Object.values(r.plans).forEach(ps=>ps.forEach(pl=>(pl.days||[]).forEach(d=>{if(fixHolidayDay(d))ch=true;if(fixExamPeriods(d))ch=true;if(mig)(d.periods||[]).forEach(p=>{if(p.test&&!/quiz|إملاء|املاء/i.test((p.lesson||'')+' '+(p.homework||''))){delete p.test;ch=true}})})));if(mig){r.mig3=1;ch=true}if(ch)try{localStorage.setItem(KEY,JSON.stringify(r))}catch(e){}return r}}catch(e){console.error(e);LOAD_ERR=e;try{const raw=localStorage.getItem(KEY);if(raw)localStorage.setItem(KEY+'.rescue',raw)}catch(_){}}return defaults()}
+// The plan PDFs encode the لا ligature so pdf.js reads it back as "ال"; fix words that can't be right as extracted (plus one typo in the source PDFs)
+const AR_FIX=[['ثالثاء','ثلاثاء'],['سالمي','سلامي'],['إسالم','إسلام'],['صالة','صلاة'],['مالحظ','ملاحظ'],['أخالق','أخلاق'],['عالمة','علامة'],['عالمات','علامات'],['إمالء','إملاء'],['ف المعرفة','في المعرفة'],
+  ['ماليين','ملايين'],['تالوة','تلاوة'],['الوالء','الولاء'],['مدخالت','مدخلات'],['خاليا','خلايا'],['سالسل','سلاسل'],['عالقات','علاقات'],['الالفقاري','اللافقاري'],['أالحظ','ألاحظ'],['ترحيب بالطالب','ترحيب بالطلاب'],['المبتأ','المبتدأ']];
+// apply AR_FIX to every string already saved in plans / exam sets (they were imported before a fix was added)
+function fixSavedText(r){let ch=false;const walk=o=>{if(Array.isArray(o)){o.forEach((v,i)=>{if(typeof v==='string'){const n=arFixStr(v);if(n!==v){o[i]=n;ch=true}}else if(v&&typeof v==='object')walk(v)})}else for(const k in o){const v=o[k];if(typeof v==='string'){const n=arFixStr(v);if(n!==v){o[k]=n;ch=true}}else if(v&&typeof v==='object')walk(v)}};walk(r.plans||{});walk(r.examSets||[]);return ch}
+function arFixStr(s){for(const[a,b]of AR_FIX)if(s.includes(a))s=s.split(a).join(b);return s}
+function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.kids){const d=defaults();const r=Object.assign(d,s);r.kids.forEach(k=>{if(!r.plans[k.id])r.plans[k.id]=[];if(!k.grade)k.grade=k.id==='ali'?4:k.id==='bader'?3:0;if(!k.books)k.books=k.id==='ali'?['Top Goal','Family and Friends']:k.id==='bader'?['We Can','Family and Friends']:[]});let ch=false;const mig=!r.mig3;(r.examSets||[]).forEach(s=>{if(s.period===undefined){s.period=guessPeriod(s.title);ch=true}(s.exams||[]).forEach(e=>{const o=`ex|${s.kid}|${e.date}|${subjectKey(e.subject)}`,n=`ex|${s.kid}|${s.id}|${e.date}|${subjectKey(e.subject)}`;if(r.grades&&r.grades[o]&&!r.grades[n]){r.grades[n]=r.grades[o];delete r.grades[o];ch=true}})});Object.values(r.plans).forEach(ps=>ps.forEach(pl=>(pl.days||[]).forEach(d=>{if(fixHolidayDay(d))ch=true;if(fixExamPeriods(d))ch=true;if(mig)(d.periods||[]).forEach(p=>{if(p.test&&!/quiz|إملاء|املاء/i.test((p.lesson||'')+' '+(p.homework||''))){delete p.test;ch=true}})})));if(mig){r.mig3=1;ch=true}if(fixSavedText(r))ch=true;if(ch)try{localStorage.setItem(KEY,JSON.stringify(r))}catch(e){}return r}}catch(e){console.error(e);LOAD_ERR=e;try{const raw=localStorage.getItem(KEY);if(raw)localStorage.setItem(KEY+'.rescue',raw)}catch(_){}}return defaults()}
 var LOAD_ERR=null;
 let S=load();
 function save(){if(LOAD_ERR){toast('⚠️ تعذّر تحميل البيانات المحفوظة — لم يتم الحفظ');return}try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('تعذّر الحفظ!')}if(typeof cloudPush==='function')cloudPush()}
@@ -86003,6 +86014,7 @@ function renderKid(){
   if(V.tab==='exams')return wrap(h+renderExams(k));
   h+=`<div class="weeknav">${idx>0?`<button class="btn sm" data-date="${plans[idx-1].days[0].date}">→ الأسبوع السابق</button>`:''}
      <span>${fmt(plan.from)} – ${fmt(plan.to)}</span>
+     ${(plan.pdfs||[]).map(p=>`<button class="btn sm" data-act="viewPdf" data-id="${esc(p.id)}" data-name="${esc(p.name)}">📄 ${p.lang==='en'?'English plan':'الخطة الأصلية'}</button>`).join('')}
      ${idx<plans.length-1?`<button class="btn sm" data-date="${plans[idx+1].days[0].date}">الأسبوع التالي ←</button>`:''}</div>`;
   if(V.tab==='week')return wrap(h+renderWeek(k,plan));
   if(V.tab==='table')return wrap(h+renderTimetable(k,plan));
@@ -86014,7 +86026,7 @@ function renderKid(){
   const f=findDay(k.id,V.date),its=items(k.id,V.date),hw=its.filter(i=>i.kind==='hw'),tk=its.filter(i=>i.kind==='task');
   const dn=its.filter(i=>i.done).length,p=its.length?Math.round(dn/its.length*100):0,ws=weekStats(k.id,plan);
   const item=i=>`<button class="item ${i.done?'done':''}" data-toggle="${i.id}"><span class="check">${i.done?'✓':''}</span><span class="body">${i.kind==='hw'?chip(i.subject):'<span class="chip" style="--c:#b45309">مهمة إضافية</span>'}<span class="txt" dir="auto">${esc(i.text)}</span>${i.sub?`<small dir="auto">الدرس: ${esc(i.sub)}</small>`:''}</span><span class="pts">⭐ ${i.pts}</span></button>`;
-  h+=`<div class="cols"><div>
+  h+=`<div class="cols dayc"><div>
     ${f&&f.day.note?`<div class="note">📢 ${esc(f.day.note)}</div>`:''}
     ${(()=>{const ds=plan.days.map(d=>d.date).sort(),i=ds.indexOf(V.date),nx=i>=0?plan.days.find(d=>d.date===ds[i+1]):null;return nx&&nx.holiday?`<div class="holiday small"><div class="holsun">🏖️</div><div><b>غداً ${esc(nx.note||'إجازة')}</b><span>لا مدرسة يوم ${dayName(nx.date)}</span></div></div>`:''})()}
     ${upcomingExams(k.id,V.date,3).map(e=>{const n=Math.round((pd(e.date)-pd(V.date))/864e5);return`<div class="testbox exam"><b>${n===0?'📝 اليوم':n===1?'⏰ غداً ('+dayName(e.date)+')':'📅 بعد '+n+' أيام ('+dayName(e.date)+')'}: اختبار ${esc(e.subject)}${e.type?' — '+esc(e.type):''}</b>${e.parts.length?`<div class="hint" style="margin-top:4px">${n===0?'الجزء المقرر':'راجع'}:</div><div class="xparts">${e.parts.map(p=>`<span dir="auto">${esc(p)}</span>`).join('')}</div>`:''}</div>`}).join('')}
@@ -86023,9 +86035,10 @@ function renderKid(){
     ${its.length&&dn===its.length?`<div class="bravo">🎉 أحسنت يا ${esc(k.name)}! أنهيت كل مهام ${dayName(V.date)}</div>`:''}</div>
     <div class="card"><h3>📝 الواجبات (${hw.length})</h3>${hw.length?hw.map(item).join(''):'<p class="hint">لا توجد واجبات في هذا اليوم 😊</p>'}</div>
     <div class="card"><h3>✅ مهام إضافية</h3>${tk.length?tk.map(item).join(''):'<p class="hint">لا توجد مهام إضافية. يضيفها ولي الأمر من 🔒</p>'}</div>
+    <div class="wk-end">${extrasCard(plan)}</div>
   </div><div>
     <div class="card"><h3>🏫 حصص يوم ${dayName(V.date)}</h3>${f?f.day.periods.map(pr=>`<div class="period"><span class="num">${pr.n}</span><div class="ptxt"><span class="subjlink" data-subj="${esc(subjectKey(pr.subject))}" title="ملخص المادة">${chip(pr.subject)}</span>${pr.replaced?`<small class="repl">بدلاً من ${esc(pr.replaced)}</small>`:''}<span dir="auto">${esc(pr.lesson)}</span>${wordsHtml(testWords(plan,pr))}</div>${isExamP(k.id,V.date,pr)?`<span class="badge">${pr.test?'اختبار قصير':'اختبار'}</span>`:''}</div>`).join(''):''}</div>
-    ${extrasCard(plan)}
+    <div class="wk-side">${extrasCard(plan)}</div>
   </div></div>`;
   return wrap(h);
 }
@@ -86165,7 +86178,8 @@ function renderParent(){
   let h=`<div class="parenthead"><h1>🔒 وضع ولي الأمر</h1><div class="sp"></div><button class="btn" data-act="lock">خروج وقفل</button></div><div class="grid2"><div>`;
   h+=`<div class="card"><h3>📥 تحميل الخطة الأسبوعية</h3>
   <button class="drop" id="drop" data-act="pickPdf"><span style="font-size:40px">📄</span><b>اسحب ملفات خطة المدرسة (PDF) وأفلتها هنا</b><span class="hint">الخطة الأسبوعية (العربية والإنجليزية) أو جدول الاختبارات — أو اضغط هنا للاختيار</span></button>`;
-  S.kids.forEach(k=>{const ps=plansOf(k.id);h+=`<b>${k.emoji} ${esc(k.name)}</b><ul class="list">${ps.length?ps.map(p=>`<li><span>${esc(p.weekLabel||('الأسبوع '+p.week))} — ${fmt(p.from)} إلى ${fmt(p.to)}</span><button class="btn sm danger" data-act="delPlan" data-kid2="${k.id}" data-from="${p.from}">حذف</button></li>`).join(''):'<li class="hint">لا توجد خطط</li>'}</ul>`});
+  h+=`<button class="btn sm" data-act="pickAttach" style="margin-bottom:12px">📎 إرفاق ملفات PDF الأصلية لأسابيع محفوظة</button>`;
+  S.kids.forEach(k=>{const ps=plansOf(k.id);h+=`<b>${k.emoji} ${esc(k.name)}</b><ul class="list">${ps.length?ps.map(p=>`<li><span>${esc(p.weekLabel||('الأسبوع '+p.week))} — ${fmt(p.from)} إلى ${fmt(p.to)}${(p.pdfs||[]).length?' 📎':''}</span><button class="btn sm danger" data-act="delPlan" data-kid2="${k.id}" data-from="${p.from}">حذف</button></li>`).join(''):'<li class="hint">لا توجد خطط</li>'}</ul>`});
   h+=`</div>`;
   h+=`<div class="card"><h3>➕ مهام إضافية</h3>
     <div class="row"><label style="flex:1">المهمة<input id="tTitle" placeholder="مثال: قراءة 10 صفحات"></label></div>
@@ -86224,7 +86238,6 @@ const sundayOf=k=>{const d=pd(k);d.setDate(d.getDate()-d.getDay());return dk(d)}
 const median=a=>{if(!a.length)return 0;const s=a.slice().sort((x,y)=>x-y);return s[Math.floor(s.length/2)]};
 const cx=i=>i.x+i.w/2;
 const AR_RE=/[؀-ۿ]/;
-const AR_FIX=[['ثالثاء','ثلاثاء'],['سالمي','سلامي'],['إسالم','إسلام'],['صالة','صلاة'],['مالحظ','ملاحظ'],['أخالق','أخلاق'],['عالمة','علامة'],['عالمات','علامات'],['إمالء','إملاء'],['ف المعرفة','في المعرفة']];
 function fixAr(s){
   s=String(s||'').replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/ـ/g,'').replace(/[”“″]/g,"'");
   s=s.replace(/(^|[\s(\/])([وفبك]?)ا([أإآ])ل/g,'$1$2ال$3').replace(/(^|[\s(\/])([وفبك]?)اال/g,'$1$2الا');
@@ -86243,6 +86256,26 @@ async function pdfItems(buf){
   const doc=await pdfjsLib.getDocument({data:buf,isEvalSupported:false}).promise;
   const pg=await doc.getPage(1),vp=pg.getViewport({scale:1}),tc=await pg.getTextContent();
   return tc.items.filter(i=>i.str&&i.str.trim()).map(i=>({s:i.str,x:i.transform[4],y:vp.height-i.transform[5],w:i.width}));
+}
+/* ---------- original plan PDFs: IndexedDB on this device + cloud /family/pdfs (loaded only when viewed) ---------- */
+const b64enc=u=>{let s='';for(let i=0;i<u.length;i+=32768)s+=String.fromCharCode.apply(null,u.subarray(i,i+32768));return btoa(s)};
+const b64dec=s=>{const b=atob(s),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u};
+function pdfDB(){return new Promise((res,rej)=>{const r=indexedDB.open('kidsDashPdf',1);r.onupgradeneeded=()=>r.result.createObjectStore('pdf');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+async function pdfCache(id,buf){try{const db=await pdfDB();return await new Promise((res,rej)=>{const st=db.transaction('pdf',buf?'readwrite':'readonly').objectStore('pdf'),r=buf?st.put(buf,id):st.get(id);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}catch(e){return null}}
+const cloudPdfRef=id=>typeof CLOUD!=='undefined'&&CLOUD.ready&&CLOUD.ref?CLOUD.ref.child('pdfs/'+id):null;
+async function storePdf(id,buf){await pdfCache(id,buf);const r=cloudPdfRef(id);if(r)await r.set(b64enc(buf))}
+async function loadPdf(id){let b=await pdfCache(id);if(b)return b;const r=cloudPdfRef(id);if(!r)return null;const v=(await r.once('value')).val();if(!v)return null;b=b64dec(v);pdfCache(id,b);return b}
+function dropPdf(id){const r=cloudPdfRef(id);if(r)r.remove();pdfDB().then(db=>db.transaction('pdf','readwrite').objectStore('pdf').delete(id)).catch(()=>{})}
+async function attachPdfs(kid,plan,list){for(const x of list){const id=`${kid}_${plan.from}_${x.lang}`;await storePdf(id,x.buf);plan.pdfs=(plan.pdfs||[]).filter(p=>p.lang!==x.lang).concat({id,lang:x.lang,name:x.name})}}
+async function viewPdf(id,name){
+  document.getElementById('layer').innerHTML=`<div class="overlay"><div class="modal big pdfv"><div class="kidhead"><h3>📄 <span dir="auto">${esc((name||'الخطة').replace(/\.pdf$/i,''))}</span></h3><div class="sp"></div><a class="btn" id="pdfOpen" target="_blank" rel="noopener" hidden>↗️ فتح في نافذة</a><button class="btn" data-act="closeModal">إغلاق</button></div><div id="pdfPages" class="hint">⏳ جاري تحميل الملف...</div></div></div>`;
+  try{
+    const buf=await loadPdf(id);if(!buf)throw new Error('الملف غير موجود. أرفقه من وضع ولي الأمر 🔒');
+    const a=document.getElementById('pdfOpen');if(a){a.href=URL.createObjectURL(new Blob([buf],{type:'application/pdf'}));a.hidden=false}
+    // disableFontFace: draw glyphs from the embedded fonts directly; handing the converted Arabic fonts to the browser drops letters
+    const doc=await pdfjsLib.getDocument({data:buf.slice(),isEvalSupported:false,disableFontFace:true}).promise,box=document.getElementById('pdfPages');if(!box)return;box.textContent='';box.className='';
+    for(let n=1;n<=doc.numPages;n++){if(!box.isConnected)return;const pg=await doc.getPage(n),sc=(box.clientWidth||800)/pg.getViewport({scale:1}).width*Math.min(window.devicePixelRatio||1,2),vp=pg.getViewport({scale:sc}),c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;c.className='pdfpage';box.appendChild(c);await pg.render({canvasContext:c.getContext('2d'),viewport:vp}).promise}
+  }catch(e){const box=document.getElementById('pdfPages');if(box)box.textContent='⚠️ '+(e.message||e)}
 }
 function joinItems(arr){
   if(!arr.length)return'';
@@ -86390,7 +86423,7 @@ function buildPending(ar,en,warn){
     days,warnings:warn};
 }
 
-async function handleFiles(list){
+async function handleFiles(list,attach){
   const files=[...list];if(!files.length)return;
   if(!parentOK){STASH=files;return askPin()}
   toast('⏳ جاري قراءة '+(files.length>1?files.length+' ملفات':'الخطة')+'...');
@@ -86401,8 +86434,8 @@ async function handleFiles(list){
       if(!/\.pdf$/i.test(f.name)){warn.push('تم تجاهل '+f.name+' (ليس PDF)');continue}
       const buf=new Uint8Array(await f.arrayBuffer());const it=await pdfItems(buf.slice());
       const xs=parseExams(it);if(xs){try{const pages=await pdfPages(buf.slice());pages.slice(1).forEach(pi=>{const m=parseExams(pi);if(m)xs.exams.push(...m.exams)})}catch(e){}examsParsed.push(xs);continue}
-      const a=parseArabic(it);if(a){parsed.push({ar:a,start:a.date?sundayOf(a.date):'',g:gradeNum(a.grade),wk:a.week,name:f.name});continue}
-      const e=parseEnglish(it);if(e){parsed.push({en:e,start:e.from?sundayOf(e.from):'',g:gradeNum(e.grade),wk:e.week,name:f.name});continue}
+      const a=parseArabic(it);if(a){parsed.push({ar:a,start:a.date?sundayOf(a.date):'',g:gradeNum(a.grade),wk:a.week,name:f.name,pdf:buf});continue}
+      const e=parseEnglish(it);if(e){parsed.push({en:e,start:e.from?sundayOf(e.from):'',g:gradeNum(e.grade),wk:e.week,name:f.name,pdf:buf});continue}
       warn.push('لم أتعرف على شكل الملف: '+f.name);
     }catch(e){warn.push('تعذّرت قراءة '+f.name+': '+(e.message||e))}
   }
@@ -86413,7 +86446,18 @@ async function handleFiles(list){
     const k=x.ar?'ar':'en';
     let g=groups.find(g=>!g.json&&!g[k]&&(!g.g||!x.g||g.g===x.g)&&((x.start&&g.start&&x.start===g.start)||(!(x.start&&g.start)&&x.wk&&g.wk===x.wk)));
     if(!g){g={g:x.g,wk:x.wk,start:x.start};groups.push(g)}
-    g[k]=x[k];g.start=g.start||x.start;g.wk=g.wk||x.wk;g.g=g.g||x.g;
+    g[k]=x[k];g.start=g.start||x.start;g.wk=g.wk||x.wk;g.g=g.g||x.g;if(x.pdf)g[k+'Pdf']={lang:k,name:x.name,buf:x.pdf};
+  }
+  if(attach){
+    // attach the original PDFs to weeks that are already saved, without re-reviewing them
+    let n=0;const miss=[];
+    for(const g of groups){if(g.json)continue;const T={grade:''};detectKid(T,g.ar,g.en);const pdfs=[g.arPdf,g.enPdf].filter(Boolean),names=pdfs.map(p=>p.name).join('، ');
+      const plan=T.detected&&g.start&&plansOf(T.kid).find(p=>sundayOf(p.from)===g.start);
+      if(!plan){miss.push(names);continue}
+      try{await attachPdfs(T.kid,plan,pdfs);n+=pdfs.length}catch(e){miss.push(names+' ('+(e.message||e)+')')}}
+    save();render();
+    if(miss.length||warn.length)return showErr((n?'✅ تم إرفاق '+n+' ملف.\n\n':'')+(miss.length?'لم أجد أسبوعاً محفوظاً يطابق:\n'+miss.join('\n'):'')+(warn.length?'\n'+warn.join('\n'):''));
+    return toast('📎 تم إرفاق '+n+' ملف');
   }
   if(!groups.length&&!examsParsed.length)return showErr(warn.join('\n')||'لم يتم العثور على خطة في الملفات.');
   groups.sort((a,b)=>(a.start||'').localeCompare(b.start||''));
@@ -86422,7 +86466,7 @@ async function handleFiles(list){
     if(g.json){const j=g.json;P={start:g.start,week:j.week||0,weekLabel:j.weekLabel||'',grade:j.grade||'',classTeacher:j.classTeacher||'',weekValue:j.weekValue||'',school:j.school||'',extras:j.extras||{},
       days:j.days.map(d=>({offset:Math.round((pd(d.date)-pd(g.start))/864e5),note:d.note||'',holiday:!!d.holiday,periods:d.periods})),warnings:w}}
     else P=buildPending(g.ar||null,g.en||null,w);
-    detectKid(P,g.ar,g.en);return P;
+    detectKid(P,g.ar,g.en);P.pdfs=[g.arPdf,g.enPdf].filter(Boolean);return P;
   });
   examsParsed.forEach(x=>QUEUE.push(examPending(x)));
   QTOTAL=QUEUE.length;nextReview();
@@ -86465,8 +86509,10 @@ function saveReview(){
   const days=P.days.slice().sort((a,b)=>a.offset-b.offset).map(d=>({date:addDays(start,d.offset),note:d.note||(d.holiday?'إجازة':undefined),holiday:d.holiday||undefined,periods:d.holiday?d.periods.filter(p=>p.subject).map(p=>({n:p.n,subject:p.subject,lesson:'',homework:''})):d.periods.filter(p=>p.subject||p.lesson||p.homework).map(p=>{const q={n:p.n,subject:p.subject,lesson:p.lesson,homework:p.homework};if(p.test)q.test=true;return q})}));
   const plan={format:'kids-dashboard-week',version:1,school:P.school||'',grade:P.grade,classTeacher:P.classTeacher||'',week:P.week||0,weekLabel:P.weekLabel,from:days[0].date,to:days.at(-1).date,weekValue:P.weekValue,extras:P.extras,days};
   plan.days.forEach(d=>{fixHolidayDay(d);fixExamPeriods(d)});
+  const old=(S.plans[P.kid]||[]).find(x=>x.from===plan.from);if(old&&old.pdfs)plan.pdfs=old.pdfs.slice();
   S.plans[P.kid]=(S.plans[P.kid]||[]).filter(x=>x.from!==plan.from);S.plans[P.kid].push(plan);
   S.gradeKid=S.gradeKid||{};if(plan.grade)S.gradeKid[plan.grade]=P.kid;save();
+  if(P.pdfs&&P.pdfs.length)attachPdfs(P.kid,plan,P.pdfs).then(save).catch(e=>{console.error(e);toast('⚠️ تعذّر حفظ ملف PDF الأصلي')});
   closeModal();PENDING=null;QSAVED++;toast('✅ تم حفظ '+(plan.weekLabel||'الخطة')+' لـ '+kidById(P.kid).name);render();nextReview();
 }
 
@@ -86621,7 +86667,9 @@ async function act(a,el){
   if(a==='cancelAll'){QUEUE=[];QTOTAL=0;QSAVED=0;PENDING=null;return closeModal()}
   if(a==='addRow'){collectReview();const d=PENDING.days[+el.dataset.d];d.periods.push({n:(d.periods.at(-1)?.n||0)+1,subject:'',lesson:'',homework:''});return drawReview()}
   if(a==='delRow'){collectReview();PENDING.days[+el.dataset.d].periods.splice(+el.dataset.p,1);return drawReview()}
-  if(a==='delPlan'){if(!confirm('حذف هذه الخطة؟'))return;const k=el.dataset.kid2;S.plans[k]=S.plans[k].filter(x=>x.from!==el.dataset.from);save();return render()}
+  if(a==='viewPdf')return viewPdf(el.dataset.id,el.dataset.name);
+  if(a==='pickAttach'){const i=document.getElementById('pdfAttach');i.value='';return i.click()}
+  if(a==='delPlan'){if(!confirm('حذف هذه الخطة؟'))return;const k=el.dataset.kid2;((S.plans[k].find(x=>x.from===el.dataset.from)||{}).pdfs||[]).forEach(p=>dropPdf(p.id));S.plans[k]=S.plans[k].filter(x=>x.from!==el.dataset.from);save();return render()}
   if(a==='addTask'){
     const title=document.getElementById('tTitle').value.trim();if(!title)return toast('اكتب المهمة');
     const when=document.getElementById('tWhen').value,date=document.getElementById('tDate').value;
@@ -86655,6 +86703,7 @@ document.addEventListener('click',e=>{
 });
 
 document.getElementById('pdfFiles').addEventListener('change',e=>handleFiles(e.target.files));
+document.getElementById('pdfAttach').addEventListener('change',e=>handleFiles(e.target.files,true));
 let dragN=0;
 document.addEventListener('dragenter',e=>{e.preventDefault();if(++dragN===1)document.body.classList.add('dragging')});
 document.addEventListener('dragleave',e=>{if(--dragN<=0){dragN=0;document.body.classList.remove('dragging')}});
@@ -86707,7 +86756,7 @@ function cloudPush(){
   CLOUD.done=Object.assign({},done);
   if(Object.keys(u).length)CLOUD.ref.update(u).catch(e=>{console.error(e);CLOUD.err=(CLOUD.user?CLOUD.user.email+': ':'')+(e.code||e.message);toast('⚠️ تعذّرت المزامنة — '+CLOUD.err)});
 }
-function applyState(v){CLOUD.state=v;S=Object.assign(defaults(),JSON.parse(v),{done:S.done});LOAD_ERR=null;localSave()}
+function applyState(v){CLOUD.state=v;S=Object.assign(defaults(),JSON.parse(v),{done:S.done});LOAD_ERR=null;localSave();if(fixSavedText(S)){localSave();setTimeout(cloudPush,0)}}
 function applyDone(v){const m={};for(const k in v||{})m[decodeURIComponent(k)]=true;CLOUD.done=Object.assign({},m);S.done=m;localSave()}
 // don't redraw under the parent while they type or review a PDF; retry shortly
 function cloudBusy(){const a=document.activeElement;return document.getElementById('layer').innerHTML.trim()!==''||(V.name==='parent'&&a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))}
@@ -86720,7 +86769,9 @@ function cloudRefresh(){
 setInterval(()=>{if(CLOUD.pending)cloudRefresh()},3000);
 async function cloudStart(user){
   CLOUD.user=user;CLOUD.ready=false;CLOUD.ref=firebase.database().ref('family');renderTop();
-  const v=(await CLOUD.ref.once('value')).val()||{},remote=v.state?JSON.parse(v.state):null;
+  // read state + done only; /family/pdfs is large and is fetched per file when viewed
+  const[st,dn]=await Promise.all([CLOUD.ref.child('state').once('value'),CLOUD.ref.child('done').once('value')]);
+  const v={state:st.val(),done:dn.val()},remote=v.state?JSON.parse(v.state):null;
   if(hasPlans(S)&&!hasPlans(remote)){
     // first device with real data seeds the cloud
     CLOUD.state=v.state||null;CLOUD.done={};for(const k in v.done||{})CLOUD.done[decodeURIComponent(k)]=true;
