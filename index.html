@@ -208,6 +208,8 @@ td.holcell .holsun{font-size:48px}
 .repl{display:block;font-size:12px;color:var(--muted)}
 .setavg{border:2px solid var(--g);color:var(--g);border-radius:99px;padding:0 12px;font-weight:800}
 .cloud{font-size:20px;opacity:.45}.cloud.on{opacity:1}
+.kidhead small{display:block}
+.weekbadge{display:inline-block;margin-top:4px;background:var(--kid);color:#fff;border-radius:99px;padding:3px 14px;font-size:18px;font-weight:800}
 .cloudin{display:block;width:100%;margin:8px 0;text-align:left}
 @media print{.top,.tabs,.weeknav,.days,.kidhead,.tt-actions,#layer,.toast{display:none!important}body{background:#fff}main{padding:0;max-width:none}.tt{box-shadow:none;padding:0}
   @page{size:A4 landscape;margin:8mm}.ttc{min-height:82px}.ttic{font-size:32px}.abc{font-size:24px}.tthead{margin-bottom:8px}.tthead h1{font-size:28px}.tthead p{font-size:16px}.ttdeco{font-size:44px}.ttday span{font-size:24px}.ttday{font-size:18px}.ttgrid{gap:6px}.ttc,.tth,.ttday{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
@@ -85960,7 +85962,7 @@ function renderHome(){
 
 /* ---------- kid ---------- */
 function kidHead(k,plan){
-  return `<div class="kidhead"><div class="avatar sm">${k.emoji}</div><div><h2>${esc(k.name)}</h2><small>${plan?esc(plan.grade)+' · '+esc(plan.weekLabel||('الأسبوع '+plan.week)):''}</small></div><div class="sp"></div>
+  return `<div class="kidhead"><div class="avatar sm">${k.emoji}</div><div><h2>${esc(k.name)}</h2>${plan?`<small>${esc(plan.grade)}</small><span class="weekbadge">🗓️ ${esc(plan.weekLabel||('الأسبوع '+plan.week))}</span>`:''}</div><div class="sp"></div>
   <div class="tabs"><button class="tab ${V.tab==='today'?'on':''}" data-tab="today">📅 اليوم</button><button class="tab ${V.tab==='week'?'on':''}" data-tab="week">🗓️ الأسبوع</button><button class="tab ${V.tab==='table'?'on':''}" data-tab="table">📋 الجدول</button><button class="tab ${V.tab==='exams'?'on':''}" data-tab="exams">📝 الاختبارات${upcomingExams(k.id,todayKey(),7).length?'<i class="dot"></i>':''}</button><button class="tab ${V.tab==='sum'?'on':''}" data-tab="sum">📊 الملخص</button></div></div>`;
 }
 function renderKid(){
