@@ -141,7 +141,7 @@ table.week .words.sw .word{font-size:13px;padding:1px 6px}
 .ttic{font-size:40px;line-height:1}
 .abc{font-size:30px;font-weight:900;line-height:1;letter-spacing:1px}.abc i{font-style:normal}
 .ttdash{color:#8b5cf6;font-size:28px;font-weight:900}
-@media(max-width:900px){.ttgrid{overflow-x:auto;grid-template-columns:80px repeat(7,minmax(90px,1fr))!important}.tthead h1{font-size:24px}.ttdeco{display:none}}
+@media(max-width:900px){.ttgrid{overflow-x:auto;grid-template-columns:80px repeat(var(--n,7),minmax(90px,1fr))!important}.tthead h1{font-size:24px}.ttdeco{display:none}}
 .holiday{display:flex;align-items:center;gap:16px;border-radius:20px;padding:16px 20px;margin-bottom:20px;background:linear-gradient(135deg,#fef3c7,#e0f2fe);border:2px solid #fcd34d;color:#78350f}
 .holiday b{display:block;font-size:20px}.holiday span{color:#92400e}
 .holiday .holsun{font-size:40px}
@@ -210,6 +210,33 @@ td.holcell .holsun{font-size:48px}
 .cloud{font-size:20px;opacity:.45}.cloud.on{opacity:1}
 .kidhead small{display:block}
 .weekbadge{display:inline-block;margin-top:4px;background:var(--kid);color:#fff;border-radius:99px;padding:3px 14px;font-size:18px;font-weight:800}
+/* ---------- mobile / stacked layout ---------- */
+body{overflow-x:clip}
+.kids{grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr))}
+.cols>div{min-width:0}
+.weeknav{flex-wrap:wrap}
+@media(max-width:900px){.cols{gap:0}.cols>div:last-child{order:-1}}
+@media(max-width:640px){
+  main{padding:12px}
+  .top{padding:8px 12px;gap:6px}
+  .brand{font-size:22px}.brand .bt{display:none}
+  .kidbtn{padding:2px 10px}
+  .top .btn{padding:6px 10px;font-size:15px}
+  .hello h1{font-size:22px}.hello p{font-size:14px;margin-bottom:14px}
+  .kidcard{padding:16px;gap:12px;border-radius:18px}.kidcard h2{font-size:22px}
+  .avatar{width:56px;height:56px;font-size:30px}
+  .ring{width:76px;height:76px}.ring>div{width:58px;height:58px;font-size:17px}
+  .kidhead{gap:10px}.kidhead .sp{display:none}
+  .tabs{flex-basis:100%;flex-wrap:wrap}
+  .tab{flex:1 1 30%;padding:6px 8px;white-space:nowrap;font-size:15px}
+  .days{flex-wrap:nowrap;overflow-x:auto;padding-top:12px;margin:4px 0 14px;scrollbar-width:none}.days::-webkit-scrollbar{display:none}
+  .day{flex:none;min-width:70px;padding:6px 10px}
+  .card{padding:14px;border-radius:16px;margin-bottom:14px}
+  .cols{gap:0}
+  .item{padding:10px 12px;gap:10px}.item .txt{font-size:17px}
+  .tt{padding:10px;border-radius:16px}.tthead h1{font-size:20px}.tthead p{font-size:15px}
+  .tt-actions{margin-top:10px}
+}
 .cloudin{display:block;width:100%;margin:8px 0;text-align:left}
 @media print{.top,.tabs,.weeknav,.days,.kidhead,.tt-actions,#layer,.toast{display:none!important}body{background:#fff}main{padding:0;max-width:none}.tt{box-shadow:none;padding:0}
   @page{size:A4 landscape;margin:8mm}.ttc{min-height:82px}.ttic{font-size:32px}.abc{font-size:24px}.tthead{margin-bottom:8px}.tthead h1{font-size:28px}.tthead p{font-size:16px}.ttdeco{font-size:44px}.ttday span{font-size:24px}.ttday{font-size:18px}.ttgrid{gap:6px}.ttc,.tth,.ttday{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
@@ -85933,7 +85960,7 @@ function weekStats(kid,plan){let d=0,t=0,stars=0;if(plan)plan.days.forEach(x=>it
 /* ---------- top bar ---------- */
 function renderTop(){
   document.getElementById('top').innerHTML=
-    `<button class="brand" data-nav="home">📚 لوحة الواجبات</button>
+    `<button class="brand" data-nav="home">📚 <span class="bt">لوحة الواجبات</span></button>
      ${S.kids.map(k=>`<button class="kidbtn ${V.name==='kid'&&V.kid===k.id?'on':''}" style="--kid:${k.color}" data-kid="${k.id}">${k.emoji} ${esc(k.name)}</button>`).join('')}
      <div class="sp"></div>
      ${typeof cloudBadge==='function'?cloudBadge():''}
@@ -86032,7 +86059,7 @@ function renderTimetable(k,plan){
   let h=`<div class="tt-actions"><button class="btn" onclick="window.print()">🖨️ طباعة الجدول</button></div>
   <div class="tt" id="tt"><div class="tthead"><span class="ttdeco">🎒</span><div><h1>جدول الصف <span style="color:#2e9d4a">${esc(GRADE_WORDS[g-1]||g)}</span>${sec?` <span style="color:#e53935">(${esc(sec)})</span>`:''} الأسبوعي</h1>
   <p>أتعلم ⭐ أستمتع ⭐ أنجح</p><small>${esc(k.name)} · ${esc(plan.weekLabel||'')} · ${fmt(plan.from)} – ${fmt(plan.to)}</small></div><span class="ttdeco">🚀</span></div>
-  <div class="ttgrid" style="grid-template-columns:110px repeat(${maxN},1fr)"><div class="tth" style="background:#1e3a8a">اليوم</div>`;
+  <div class="ttgrid" style="--n:${maxN};grid-template-columns:110px repeat(${maxN},1fr)"><div class="tth" style="background:#1e3a8a">اليوم</div>`;
   for(let n=1;n<=maxN;n++)h+=`<div class="tth" style="background:${TT_COLS[(n-1)%TT_COLS.length]}">${TT_ORD[n-1]||n}</div>`;
   plan.days.forEach(d=>{const off=pd(d.date).getDay(),[ic,c]=TT_DAYS[off]||['📅','#64748b'];
     h+=`<div class="ttday" style="background:${c}"><span>${ic}</span>${dayName(d.date)}</div>`;
