@@ -86676,7 +86676,7 @@ function cloudPush(){
   for(const k in done)if(!CLOUD.done[k])u['done/'+encK(k)]=true;
   for(const k in CLOUD.done)if(!done[k])u['done/'+encK(k)]=null;
   CLOUD.done=Object.assign({},done);
-  if(Object.keys(u).length)CLOUD.ref.update(u).catch(e=>{console.error(e);toast('⚠️ تعذّرت المزامنة')});
+  if(Object.keys(u).length)CLOUD.ref.update(u).catch(e=>{console.error(e);CLOUD.err=(CLOUD.user?CLOUD.user.email+': ':'')+(e.code||e.message);toast('⚠️ تعذّرت المزامنة — '+CLOUD.err)});
 }
 function applyState(v){CLOUD.state=v;S=Object.assign(defaults(),JSON.parse(v),{done:S.done});LOAD_ERR=null;localSave()}
 function applyDone(v){const m={};for(const k in v||{})m[decodeURIComponent(k)]=true;CLOUD.done=Object.assign({},m);S.done=m;localSave()}
@@ -86713,7 +86713,7 @@ function cloudLogin(){
   document.getElementById('cPass').addEventListener('keydown',e=>{if(e.key==='Enter')go()});
 }
 function cloudBadge(){if(!FB_CONFIG)return'';const ok=CLOUD.user&&CLOUD.online;return`<span class="cloud ${ok?'on':''}" title="${ok?'متزامن':'غير متصل — تتم المزامنة عند عودة الاتصال'}">${ok?'☁️':'⚠️'}</span>`}
-function cloudCard(){if(!FB_CONFIG)return'';return`<div class="card"><h3>☁️ المزامنة</h3><p class="hint">${CLOUD.user?`متصل بحساب <b dir="ltr">${esc(CLOUD.user.email)}</b> — ${CLOUD.online?'✅ البيانات متزامنة مع كل الأجهزة':'⚠️ غير متصل بالإنترنت الآن'}`:'غير مسجّل الدخول'}</p>${CLOUD.user?'<button class="btn danger" id="cOut">تسجيل الخروج من هذا الجهاز</button>':''}</div>`}
+function cloudCard(){if(!FB_CONFIG)return'';return`<div class="card"><h3>☁️ المزامنة</h3><p class="hint">${CLOUD.user?`متصل بحساب <b dir="ltr">${esc(CLOUD.user.email)}</b> — ${CLOUD.online?'✅ البيانات متزامنة مع كل الأجهزة':'⚠️ غير متصل بالإنترنت الآن'}`:'غير مسجّل الدخول'}</p>${CLOUD.err?`<p class="hint" dir="ltr" style="color:var(--bad)">${esc(CLOUD.err)}</p>`:''}${CLOUD.user?'<button class="btn danger" id="cOut">تسجيل الخروج من هذا الجهاز</button>':''}</div>`}
 document.addEventListener('click',e=>{if(e.target.closest('#cOut')&&confirm('تسجيل الخروج من المزامنة على هذا الجهاز؟'))firebase.auth().signOut()});
 if(FB_CONFIG){
   if(typeof firebase==='undefined')toast('⚠️ تعذّر الاتصال بالسحابة — يعمل التطبيق بدون مزامنة');
