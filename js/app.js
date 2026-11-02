@@ -89,6 +89,7 @@ function renderTop(){
      ${S.kids.map(k=>`<button class="kidbtn ${V.name==='kid'&&V.kid===k.id?'on':''}" style="--kid:${k.color}" data-kid="${k.id}">${k.emoji} ${esc(k.name)}</button>`).join('')}
      <div class="sp"></div>
      ${typeof cloudBadge==='function'?cloudBadge():''}
+     <button class="btn" data-act="tv" title="لوحة العرض للتلفاز">📺 <span class="bt">لوحة العرض</span></button>
      <button class="btn" data-act="${parentOK?'parent':'askPin'}">🔒 ولي الأمر</button>`;
 }
 
@@ -111,6 +112,48 @@ function renderHome(){
   });
   return html+'</div>';
 }
+
+/* ---------- TV dashboard (#tv): read-only, sized to the screen, refreshes itself ---------- */
+function renderTV(){
+  const t=todayKey(),now=new Date();
+  return`<div class="tv"><div class="tvbar"><div class="tvclock"><b>${now.toLocaleTimeString('ar-SA-u-nu-latn',{hour:'numeric',minute:'2-digit'})}</b><span>${fmt(t,{weekday:'long',day:'numeric',month:'long',year:'numeric'})} · ${hijri(t)}</span></div><div class="sp"></div>${typeof cloudBadge==='function'?cloudBadge():''}<button class="btn tvexit" data-act="tvExit">✕ خروج</button></div>
+  <div class="tvgrid" style="--n:${S.kids.length}">${S.kids.map(tvKid).join('')}</div></div>`;
+}
+function tvKid(k){
+  const t=todayKey(),date=defaultDate(k.id);
+  const head=(sub,ring)=>`<div class="tvhead"><div class="avatar">${k.emoji}</div><div class="tvname"><h2>${esc(k.name)}</h2>${sub}</div>${ring||''}</div>`;
+  if(!date)return`<section class="tvkid" style="--kid:${k.color}">${head('<span>لا توجد خطة محمّلة بعد</span>')}</section>`;
+  const plan=planFor(k.id,date),f=findDay(k.id,date),hol=f&&f.day.holiday,ws=weekStats(k.id,plan),avg=kidAverage(k.id);
+  const its=items(k.id,date),dn=its.filter(i=>i.done).length,p=its.length?Math.round(dn/its.length*100):100;
+  const n=Math.round((pd(date)-pd(t))/864e5),lbl=n===0?'اليوم':n===1?'غداً — '+dayName(date):dayName(date)+' '+fmt(date);
+  const ring=hol?`<div class="ring" style="background:linear-gradient(135deg,#fde68a,#7dd3fc)"><div>🏖️</div></div>`:`<div class="ring" style="background:conic-gradient(${k.color} ${p}%,#e5e7eb 0)"><div>${dn}/${its.length}</div></div>`;
+  let h=head(`<span>${lbl} · ${esc(plan.weekLabel||('الأسبوع '+plan.week))}</span><span>⭐ ${ws.stars} نجمة هذا الأسبوع${avg?` · 📊 المعدل ${avg.avg}%`:''}</span>`,ring);
+  // alerts: official exams in the next 7 days, then quizzes / spelling tests from the weekly plan
+  const ex=upcomingExams(k.id,t,7).map(e=>`<div class="tvalert exam ${daysTo(e.date)===0?'soon':''}"><b>📝 ${whenTxt(e.date)} (${dayName(e.date)}): اختبار ${esc(e.subject)}${e.type?' — '+esc(e.type):''}</b>${e.parts.length?`<div class="xparts">${e.parts.map(x=>`<span dir="auto">${esc(x)}</span>`).join('')}</div>`:''}</div>`);
+  const qz=hol?[]:upcomingTests(plan,date).filter(x=>!officialFor(k.id,x.date,x.p.subject)).map(x=>`<div class="tvalert ${x.today?'soon':''}"><b>${x.today?'📝 اليوم':'⏰ غداً ('+dayName(x.date)+')'}: ${esc(x.p.subject)} — <span dir="auto">${esc(x.p.lesson)}</span></b>${wordsHtml(x.words)}</div>`);
+  if(f&&f.day.note&&!hol)h+=`<div class="note">📢 ${esc(f.day.note)}</div>`;
+  h+=ex.join('')+qz.join('');
+  if(hol)h+=holidayBanner(f.day,false);
+  const hw=its.map(i=>`<div class="tvhw ${i.done?'done':''}"><span class="check">${i.done?'✓':''}</span><div>${i.kind==='hw'?chip(i.subject):'<span class="chip" style="--c:#b45309">مهمة إضافية</span>'}<span class="txt" dir="auto">${esc(i.text)}</span></div></div>`).join('');
+  if(f&&!hol&&f.day.periods.length)h+=`<div class="tvsec"><h3>🏫 الحصص</h3><div class="tvper">${f.day.periods.map(pr=>`<span class="tvp ${isExamP(k.id,date,pr)?'x':''}" style="--c:${subjColor(pr.subject)}" dir="auto">${subjIcon(pr.subject)} ${esc(pr.subject)}</span>`).join('')}</div></div>`;
+  if(!hol||its.length)h+=`<div class="tvsec"><h3>📝 الواجبات</h3>${hw?`<div class="tvhwl">${hw}</div>`:'<p class="tvhint">لا توجد واجبات 😊</p>'}${its.length&&dn===its.length?`<div class="bravo">🎉 أحسنت يا ${esc(k.name)}! أنهيت كل المهام</div>`:''}</div>`;
+  return`<section class="tvkid" style="--kid:${k.color}">${h}</section>`;
+}
+// shrink a kid's card until it fits the screen (landscape only; portrait scrolls)
+function fitTV(){
+  if(matchMedia('(max-width:900px),(orientation:portrait)').matches)return;
+  const cs=[...document.querySelectorAll('.tvkid')];let u=1;
+  const over=()=>cs.some(c=>c.scrollHeight>c.clientHeight+1),set=v=>cs.forEach(c=>v?c.style.setProperty('--u',v+'vw'):c.style.removeProperty('--u'));
+  set(0);while(over()&&u>.5){u=Math.round((u-.05)*100)/100;set(u)}  // same size for every kid
+}
+addEventListener('resize',()=>{if(V.name==='tv')fitTV()});
+let WAKE=null;
+async function tvWake(){try{if(V.name==='tv'&&!WAKE&&navigator.wakeLock){WAKE=await navigator.wakeLock.request('screen');WAKE.addEventListener('release',()=>WAKE=null)}}catch(e){}}
+function fromHash(){if(location.hash==='#tv'){V={name:'tv'};tvWake()}else if(V.name==='tv')V={name:'home'}}
+addEventListener('hashchange',()=>{fromHash();render()});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)tvWake()});
+// keep the clock and ticks current; skip while a modal (e.g. cloud login) is open
+setInterval(()=>{if(V.name==='tv'&&!document.getElementById('layer').innerHTML.trim())render()},20*1000);
 
 /* ---------- kid ---------- */
 function kidHead(k,plan){
@@ -379,17 +422,35 @@ async function storePdf(id,buf){await pdfCache(id,buf);const r=cloudPdfRef(id);i
 async function loadPdf(id){let b=await pdfCache(id);if(b)return b;const r=cloudPdfRef(id);if(!r)return null;const v=(await r.once('value')).val();if(!v)return null;b=b64dec(v);pdfCache(id,b);return b}
 function dropPdf(id){const r=cloudPdfRef(id);if(r)r.remove();pdfDB().then(db=>db.transaction('pdf','readwrite').objectStore('pdf').delete(id)).catch(()=>{})}
 async function attachPdfs(kid,plan,list){for(const x of list){const id=`${kid}_${plan.from}_${x.lang}`;await storePdf(id,x.buf);plan.pdfs=(plan.pdfs||[]).filter(p=>p.lang!==x.lang).concat({id,lang:x.lang,name:x.name})}}
-let PDFV=[];
+let PDFV=[],PDFBUF=null;
+// print: re-render the pages sharper than the on-screen canvases, then print only those (works on phones too)
+async function printPdf(){
+  if(!PDFBUF)return toast('⏳ انتظر حتى يكتمل تحميل الملف');
+  toast('🖨️ جاري تجهيز الطباعة...');
+  try{
+    const doc=await pdfjsLib.getDocument({data:PDFBUF.slice(),isEvalSupported:false,disableFontFace:true}).promise,imgs=[];let land=false;
+    for(let n=1;n<=doc.numPages;n++){const pg=await doc.getPage(n),vp=pg.getViewport({scale:2.5}),c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;if(vp.width>vp.height)land=true;
+      await pg.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;const im=new Image();im.src=c.toDataURL('image/png');imgs.push(im)}
+    await Promise.all(imgs.map(i=>i.decode().catch(()=>{})));
+    document.getElementById('pdfPrint')?.remove();document.getElementById('pdfPrintPage')?.remove();
+    const box=document.createElement('div');box.id='pdfPrint';imgs.forEach(i=>box.appendChild(i));document.body.appendChild(box);
+    const st=document.createElement('style');st.id='pdfPrintPage';st.textContent=`@page{size:A4 ${land?'landscape':'portrait'};margin:6mm}`;document.head.appendChild(st);
+    const done=()=>{document.body.classList.remove('printpdf');box.remove();st.remove()};
+    addEventListener('afterprint',done,{once:true});
+    document.body.classList.add('printpdf');window.print();
+  }catch(e){console.error(e);toast('⚠️ تعذّرت الطباعة')}
+}
 // list: the week's plan files [{id,lang,name}]; i: which one to show (Arabic / English tabs)
 async function viewPdf(list,i=0){
-  PDFV=list;const cur=list[i];
+  PDFV=list;PDFBUF=null;const cur=list[i];
   const tabs=list.length>1?`<div class="tabs">${list.map((p,j)=>`<button class="tab ${j===i?'on':''}" data-act="pdfTab" data-i="${j}">${p.lang==='en'?'🇬🇧 English':'📗 العربية'}</button>`).join('')}</div>`
     :`<h3>📄 <span dir="auto">${cur?esc(cur.name.replace(/\.pdf$/i,'')):'الخطة الأسبوعية'}</span></h3>`;
-  document.getElementById('layer').innerHTML=`<div class="overlay"><div class="modal big pdfv"><div class="kidhead">${tabs}<div class="sp"></div><a class="btn" id="pdfOpen" target="_blank" rel="noopener" hidden>↗️ فتح في نافذة</a><button class="btn" data-act="closeModal">إغلاق</button></div><div id="pdfPages" class="hint">${cur?'⏳ جاري تحميل الملف...':'لم يُرفق ملف الخطة لهذا الأسبوع بعد.<br>ولي الأمر: من <b>وضع ولي الأمر 🔒</b> اضغط «📎 إرفاق ملفات PDF الأصلية».'}</div></div></div>`;
+  document.getElementById('layer').innerHTML=`<div class="overlay"><div class="modal big pdfv"><div class="kidhead">${tabs}<div class="sp"></div><button class="btn primary" id="pdfPrintBtn" data-act="printPdf" hidden>🖨️ طباعة</button><a class="btn" id="pdfOpen" target="_blank" rel="noopener" hidden>↗️ فتح في نافذة</a><button class="btn" data-act="closeModal">إغلاق</button></div><div id="pdfPages" class="hint">${cur?'⏳ جاري تحميل الملف...':'لم يُرفق ملف الخطة لهذا الأسبوع بعد.<br>ولي الأمر: من <b>وضع ولي الأمر 🔒</b> اضغط «📎 إرفاق ملفات PDF الأصلية».'}</div></div></div>`;
   if(!cur)return;const id=cur.id,box0=document.getElementById('pdfPages');
   try{
     const buf=await loadPdf(id);if(!box0.isConnected)return;/* closed or switched tab meanwhile */if(!buf)throw new Error('الملف غير موجود. أرفقه من وضع ولي الأمر 🔒');
     const a=document.getElementById('pdfOpen');if(a){a.href=URL.createObjectURL(new Blob([buf],{type:'application/pdf'}));a.hidden=false}
+    PDFBUF=buf;const pb=document.getElementById('pdfPrintBtn');if(pb)pb.hidden=false;
     // disableFontFace: draw glyphs from the embedded fonts directly; handing the converted Arabic fonts to the browser drops letters
     const doc=await pdfjsLib.getDocument({data:buf.slice(),isEvalSupported:false,disableFontFace:true}).promise,box=document.getElementById('pdfPages');if(!box)return;box.textContent='';box.className='';
     for(let n=1;n<=doc.numPages;n++){if(!box.isConnected)return;const pg=await doc.getPage(n),sc=(box.clientWidth||800)/pg.getViewport({scale:1}).width*Math.min(window.devicePixelRatio||1,2),vp=pg.getViewport({scale:sc}),c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;c.className='pdfpage';box.appendChild(c);await pg.render({canvasContext:c.getContext('2d'),viewport:vp}).promise}
@@ -767,6 +828,8 @@ async function act(a,el){
   if(a==='checkPin')return checkPin();
   if(a==='closeModal')return closeModal();
   if(a==='parent'){V={name:'parent'};return render()}
+  if(a==='tv'){try{document.documentElement.requestFullscreen().catch(()=>{})}catch(e){}location.hash='tv';return}
+  if(a==='tvExit'){if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});history.replaceState(null,'',location.pathname+location.search);V={name:'home'};return render()}
   if(a==='lock'){parentOK=false;V={name:'home'};return render()}
   if(a==='pickPdf'){const i=document.getElementById('pdfFiles');i.value='';return i.click()}
   if(a==='savePlan')return saveReview();
@@ -788,6 +851,7 @@ async function act(a,el){
   if(a==='viewPdf'){const p=planFor(V.kid,V.date),list=((p&&p.pdfs)||[]).slice().sort((x,y)=>x.lang==='ar'?-1:y.lang==='ar'?1:0);
     return viewPdf(list,Math.max(0,list.findIndex(x=>x.id===el.dataset.id)))}
   if(a==='pdfTab')return viewPdf(PDFV,+el.dataset.i);
+  if(a==='printPdf')return printPdf();
   if(a==='pickAttach'){const i=document.getElementById('pdfAttach');i.value='';return i.click()}
   if(a==='delPlan'){if(!confirm('حذف هذه الخطة؟'))return;const k=el.dataset.kid2;((S.plans[k].find(x=>x.from===el.dataset.from)||{}).pdfs||[]).forEach(p=>dropPdf(p.id));S.plans[k]=S.plans[k].filter(x=>x.from!==el.dataset.from);save();return render()}
   if(a==='addTask'){
@@ -833,8 +897,11 @@ document.addEventListener('drop',e=>{e.preventDefault();dragN=0;document.body.cl
 function render(){
   if(V.name==='parent'&&!parentOK)V={name:'home'};
   renderTop();
+  document.body.classList.toggle('tvmode',V.name==='tv');
   const app=document.getElementById('app');
-  app.innerHTML=V.name==='kid'?renderKid():V.name==='parent'?renderParent():renderHome();
+  app.innerHTML=V.name==='tv'?renderTV():V.name==='kid'?renderKid():V.name==='parent'?renderParent():renderHome();
+  if(V.name==='tv')fitTV();
 }
+fromHash();
 render();
 setInterval(()=>{if(V.name!=='parent')render()},10*60*1000);

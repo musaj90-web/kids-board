@@ -237,3 +237,59 @@ body{overflow-x:clip}
 .cloudin{display:block;width:100%;margin:8px 0;text-align:left}
 @media print{.top,.tabs,.weeknav,.days,.kidhead,.tt-actions,#layer,.toast{display:none!important}body{background:#fff}main{padding:0;max-width:none}.tt{box-shadow:none;padding:0}
   @page{size:A4 landscape;margin:8mm}.ttc{min-height:82px}.ttic{font-size:32px}.abc{font-size:24px}.tthead{margin-bottom:8px}.tthead h1{font-size:28px}.tthead p{font-size:16px}.ttdeco{font-size:44px}.ttday span{font-size:24px}.ttday{font-size:18px}.ttgrid{gap:6px}.ttc,.tth,.ttday{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+/* ---------- TV dashboard (#tv): everything scales with the screen via --u ---------- */
+body.tvmode{background:#eef1f8;overflow:hidden}
+body.tvmode .top{display:none}
+body.tvmode main{max-width:none;padding:0}
+.tv{--u:1vw;height:100vh;display:flex;flex-direction:column;padding:calc(var(--u)*1.4) calc(var(--u)*2);gap:calc(var(--u)*1.2)}
+.tvbar{display:flex;align-items:center;gap:calc(var(--u)*1.4)}
+.tvclock{display:flex;align-items:baseline;gap:calc(var(--u)*1.4)}
+.tvclock b{font-size:calc(var(--u)*3.6);font-weight:800;line-height:1}
+.tvclock span{font-size:calc(var(--u)*1.5);color:var(--muted);font-weight:700}
+.tvbar .cloud{font-size:calc(var(--u)*1.6)}
+.tvexit{font-size:calc(var(--u)*1);opacity:.55}
+.tvgrid{flex:1;min-height:0;display:grid;grid-template-columns:repeat(var(--n,2),minmax(0,1fr));gap:calc(var(--u)*1.6)}
+.tvkid{min-height:0;overflow:hidden;background:#fff;border-radius:calc(var(--u)*1.6);border-top:calc(var(--u)*.6) solid var(--kid);padding:calc(var(--u)*1.3) calc(var(--u)*1.6);box-shadow:0 4px 18px rgba(0,0,0,.06);display:flex;flex-direction:column;gap:calc(var(--u)*.9)}
+.tvhead{display:flex;align-items:center;gap:calc(var(--u)*1.2)}
+.tvhead .avatar{width:calc(var(--u)*5.2);height:calc(var(--u)*5.2);font-size:calc(var(--u)*2.9)}
+.tvname{flex:1;min-width:0;display:flex;flex-direction:column;color:var(--muted);font-weight:600;font-size:calc(var(--u)*1.25)}
+.tvname h2{font-size:calc(var(--u)*2.5);color:var(--ink);line-height:1.2}
+.tvhead .ring{width:calc(var(--u)*6.6);height:calc(var(--u)*6.6)}
+.tvhead .ring>div{width:calc(var(--u)*5);height:calc(var(--u)*5);font-size:calc(var(--u)*1.7)}
+.tvalert{border-radius:calc(var(--u)*1);padding:calc(var(--u)*.7) calc(var(--u)*1);font-size:calc(var(--u)*1.35);background:#fef2f2;border:2px solid #fecaca;color:#991b1b}
+.tvalert.exam{background:#eef2ff;border-color:#c7d2fe;color:#3730a3}
+.tvalert.soon{box-shadow:0 0 0 calc(var(--u)*.3) #fde68a}
+.tvalert .xparts{margin-top:calc(var(--u)*.4)}
+.tvalert .xparts span,.tvalert .word{font-size:calc(var(--u)*1.1);background:#fff}
+.tvkid .note,.tvkid .bravo{font-size:calc(var(--u)*1.3);margin:0}
+.tvkid .holiday{margin:0;padding:calc(var(--u)*1) calc(var(--u)*1.3)}
+.tvkid .holiday b{font-size:calc(var(--u)*1.7)}.tvkid .holiday span{font-size:calc(var(--u)*1.2)}.tvkid .holiday .holsun{font-size:calc(var(--u)*3)}
+.tvsec h3{font-size:calc(var(--u)*1.35);margin-bottom:calc(var(--u)*.5);color:var(--muted)}
+.tvhwl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:calc(var(--u)*.5)}
+.tvhw{display:flex;gap:calc(var(--u)*.9);align-items:center;border:2px solid var(--line);border-radius:calc(var(--u)*1);padding:calc(var(--u)*.55) calc(var(--u)*.9)}
+.tvhw .check{width:calc(var(--u)*2.3);height:calc(var(--u)*2.3);flex:none;border-radius:calc(var(--u)*.6);border:calc(var(--u)*.22) solid var(--kid);display:grid;place-items:center;color:#fff;font-weight:800;font-size:calc(var(--u)*1.4)}
+.tvhw>div{display:flex;flex-direction:column;gap:calc(var(--u)*.15);min-width:0}
+.tvhw .chip{font-size:calc(var(--u)*.95)}
+.tvhw .txt{font-size:calc(var(--u)*1.45);font-weight:700;line-height:1.35}
+.tvhw.done{background:#f0fdf4;border-color:#bbf7d0}
+.tvhw.done .check{background:var(--ok);border-color:var(--ok)}
+.tvhw.done .txt{text-decoration:line-through;color:var(--muted)}
+.tvhint{color:var(--muted);font-size:calc(var(--u)*1.3);margin:0}
+.tvper{display:flex;flex-wrap:wrap;gap:calc(var(--u)*.5)}
+.tvp{background:color-mix(in srgb,var(--c) 12%,white);color:var(--c);border-radius:99px;padding:calc(var(--u)*.2) calc(var(--u)*.9);font-weight:700;font-size:calc(var(--u)*1.2)}
+.tvp.x{outline:calc(var(--u)*.2) solid #dc2626}
+/* phones / portrait: stack the kids and let the page scroll */
+@media(max-width:900px),(orientation:portrait){
+  body.tvmode{overflow:auto}
+  .tv{--u:2.6vw;height:auto;min-height:100vh}
+  .tvgrid{grid-template-columns:1fr}
+  .tvhwl{grid-template-columns:1fr}
+}
+/* ---------- printing a week-plan PDF ---------- */
+#pdfPrint{display:none}
+@media print{
+  body.printpdf>*:not(#pdfPrint){display:none!important}
+  body.printpdf #pdfPrint{display:block}
+  #pdfPrint img{display:block;width:100%;height:auto;max-height:100vh;object-fit:contain;break-after:page}
+  #pdfPrint img:last-child{break-after:auto}
+}
