@@ -275,6 +275,8 @@ body.tvmode main{max-width:none;padding:0}
 .tvhw.done .check{background:var(--ok);border-color:var(--ok)}
 .tvhw.done .txt{text-decoration:line-through;color:var(--muted)}
 .tvhint{color:var(--muted);font-size:calc(var(--u)*1.3);margin:0}
+.tvsec.ev{background:#eef2ff;border:2px solid #c7d2fe;border-radius:calc(var(--u)*1);padding:calc(var(--u)*.7) calc(var(--u)*.9)}
+.tvsec.ev h3{color:#3730a3}
 .tvper{display:flex;flex-wrap:wrap;gap:calc(var(--u)*.5)}
 .tvp{background:color-mix(in srgb,var(--c) 12%,white);color:var(--c);border-radius:99px;padding:calc(var(--u)*.2) calc(var(--u)*.9);font-weight:700;font-size:calc(var(--u)*1.2)}
 .tvp.x{outline:calc(var(--u)*.2) solid #dc2626}

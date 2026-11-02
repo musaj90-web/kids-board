@@ -141,9 +141,20 @@ function tvKid(k){
   h+=ex.join('')+qz.join('');
   if(hol)h+=holidayBanner(f.day,false);
   const hw=its.map(i=>`<div class="tvhw ${i.done?'done':''}"><span class="check">${i.done?'✓':''}</span><div>${i.kind==='hw'?chip(i.subject):'<span class="chip" style="--c:#b45309">مهمة إضافية</span>'}<span class="txt" dir="auto">${esc(i.text)}</span></div></div>`).join('');
-  if(f&&!hol&&f.day.periods.length)h+=`<div class="tvsec"><h3>🏫 الحصص</h3><div class="tvper">${f.day.periods.map(pr=>`<span class="tvp ${isExamP(k.id,date,pr)?'x':''}" style="--c:${subjColor(pr.subject)}" dir="auto">${subjIcon(pr.subject)} ${esc(pr.subject)}</span>`).join('')}</div></div>`;
+  // classes: the shown day, or from 5 PM to 7 AM the next school day (so the bag can be packed the night before)
+  const ev=tvEvening(),nd=ev&&tvNextDay(k.id),cd=nd||date,cf=findDay(k.id,cd),cplan=planFor(k.id,cd)||plan,cn=daysTo(cd);
+  const ctitle=ev?`🎒 جدول ${cn===1?'الغد':cn===0?'اليوم':'يوم '+dayName(cd)} · ${dayName(cd)} ${fmt(cd)}`:'🏫 الحصص';
+  const per=pr=>{const b=isEng(pr.subject)&&englishBook(k,pr,cplan);return`<span class="tvp ${isExamP(k.id,cd,pr)?'x':''}" style="--c:${subjColor(pr.subject)}" dir="auto">${subjIcon(pr.subject)} ${esc(pr.subject)}${b?' · '+esc(b):''}</span>`};
+  if(ev&&!nd)h+=`<div class="tvsec ev"><h3>🎒 جدول اليوم الدراسي القادم</h3><p class="tvhint">📭 لم تُحمّل خطة الأسبوع القادم بعد</p></div>`;
+  else if(cf&&cf.day.holiday){if(ev)h+=`<div class="tvsec ev"><h3>${ctitle}</h3><p class="tvhint">🏖️ ${esc(cf.day.note||'إجازة')} — لا مدرسة</p></div>`}
+  else if(cf&&cf.day.periods.length)h+=`<div class="tvsec ${ev?'ev':''}"><h3>${ctitle}</h3><div class="tvper">${cf.day.periods.map(per).join('')}</div></div>`;
   if(!hol||its.length)h+=`<div class="tvsec"><h3>📝 الواجبات</h3>${hw?`<div class="tvhwl">${hw}</div>`:'<p class="tvhint">لا توجد واجبات 😊</p>'}${its.length&&dn===its.length?`<div class="bravo">🎉 أحسنت يا ${esc(k.name)}! أنهيت كل المهام</div>`:''}</div>`;
   return`<section class="tvkid" style="--kid:${k.color}">${h}</section>`;
+}
+// 5 PM–midnight: the next school day after today; midnight–7 AM: the school day starting today; otherwise null (normal)
+const tvEvening=()=>{const hr=new Date().getHours();return hr>=17||hr<7};
+function tvNextDay(kid){
+  const hr=new Date().getHours(),t=todayKey(),x=allDays(kid).find(x=>hr>=17?x.day.date>t:x.day.date>=t);return x?x.day.date:null;
 }
 // shrink a kid's card until it fits the screen (landscape only; portrait scrolls)
 function fitTV(){
