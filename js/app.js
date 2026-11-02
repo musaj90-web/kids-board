@@ -213,17 +213,23 @@ const shortBook=b=>/family\s*(and|&)\s*friends/i.test(b)?'F & F':b;
 const KNOWN_BOOKS=['We Can','Family and Friends','Top Goal'];
 const BOOK_ALIASES={familyandfriends:['fandf','ff','familyfriends','familiyandfriends','familyandfreinds'],wecan:['wecan'],topgoal:['topgoal','topgoals']};
 function bookHit(t,b){const n=normBook(b);if(!n)return false;if(t.includes(n))return true;return(BOOK_ALIASES[n]||[]).some(a=>a.length>2?t.includes(a):new RegExp('(^|[^a-z])'+a+'([^a-z]|$)').test(t))}
-function englishBook(k,p){
+// which English book a period uses, from that day's text in the English plan; a spelling-quiz day with no book named
+// (e.g. "Checking the homework & Spelling quiz") uses the book this week's spelling words come from
+function englishBook(k,p,plan){
+  const b=englishBookIn(k,p),sb=plan&&plan.extras&&plan.extras.spellingBook;
+  return b||(sb&&/spell/i.test(p.lesson+' '+p.homework)?englishBookIn(k,{lesson:sb,homework:''}):'');
+}
+function englishBookIn(k,p){
   const raw=String(p.lesson+' '+p.homework).toLowerCase().replace(/&/g,' and '),t=normBook(raw),spaced=raw.replace(/[^a-z0-9]+/g,' ');
   const SHORT={topgoal:'tg',wecan:'wc'};  // the plans sometimes write "TG — SB — P: 4-7" / "WC — Unit 1"
   const hit=b=>bookHit(t,b)||(normBook(b)==='familyandfriends'&&/(^| )(f and f|ff)( |$)/.test(spaced))||(SHORT[normBook(b)]&&new RegExp('(^| )'+SHORT[normBook(b)]+'( |$)').test(spaced));
   const own=(k.books||[]).find(hit);if(own)return shortBook(own);
   const any=[...new Set([...S.kids.flatMap(x=>x.books||[]),...KNOWN_BOOKS])].find(hit);return any?shortBook(any):'';
 }
-function ttCell(k,p){
+function ttCell(k,p,plan){
   if(!p||!p.subject)return'<div class="ttc empty"><span class="ttdash">—</span></div>';
   const s=p.subject.trim();
-  if(isEng(s)){const b=englishBook(k,p);return`<div class="ttc"><div class="abc"><i style="color:#e53935">A</i><i style="color:#1e63d6">B</i><i style="color:#2e9d4a">C</i></div><b dir="ltr">English</b>${b?`<small dir="ltr">${esc(b)}</small>`:''}</div>`}
+  if(isEng(s)){const b=englishBook(k,p,plan);return`<div class="ttc"><div class="abc"><i style="color:#e53935">A</i><i style="color:#1e63d6">B</i><i style="color:#2e9d4a">C</i></div><b dir="ltr">English</b>${b?`<small dir="ltr">${esc(b)}</small>`:''}</div>`}
   const low=s.toLowerCase(),ic=(TT_ICONS.find(([w])=>low.includes(w))||[0,'📚'])[1];
   const label=s==='لغتي'?'لغتي الجميلة':s;
   return`<div class="ttc"><div class="ttic">${ic}</div><b dir="auto">${esc(label)}</b></div>`;
@@ -239,7 +245,7 @@ function renderTimetable(k,plan){
   plan.days.forEach(d=>{const off=pd(d.date).getDay(),[ic,c]=TT_DAYS[off]||['📅','#64748b'];
     h+=`<div class="ttday" style="background:${c}"><span>${ic}</span>${dayName(d.date)}</div>`;
     if(d.holiday)h+=`<div class="ttc tthol" style="grid-column:span ${maxN}"><span class="ttic">🏖️</span><b>${esc(d.note||'إجازة')}</b><small>لا توجد حصص</small></div>`;
-    else for(let n=1;n<=maxN;n++)h+=ttCell(k,d.periods.find(p=>p.n===n));
+    else for(let n=1;n<=maxN;n++)h+=ttCell(k,d.periods.find(p=>p.n===n),plan);
   });
   return h+`</div></div>`;
 }
