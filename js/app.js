@@ -4,13 +4,18 @@ const DAYS=['الأحد','الإثنين','الثلاثاء','الأربعاء',
 const SUBJ=[['قرآن','#059669'],['علوم','#16a34a'],['science','#16a34a'],['رياضيات','#2563eb'],['math','#2563eb'],['لغتي','#ea580c'],['خط','#b45309'],['إسلامية','#0d9488'],['english','#7c3aed'],['إنجليزي','#7c3aed'],['بدنية','#dc2626'],['فنية','#db2777'],['رقمية','#0891b2'],['حياتية','#ca8a04'],['عربية','#ea580c'],['إنجليز','#7c3aed'],['نافس','#9333ea'],['اجتماعية','#0369a1'],['لفظي','#be185d'],['كمي','#7c3aed'],['قدرات','#be185d']];
 
 function defaults(){return{kids:[{id:'ali',name:'علي',emoji:'🦁',color:'#2563eb',grade:4,books:['Top Goal','Family and Friends']},{id:'bader',name:'بدر',emoji:'🚀',color:'#ea580c',grade:3,books:['We Can','Family and Friends']}],plans:{ali:[],bader:[]},done:{},tasks:[],pin:'1234',examSets:[],grades:{},lastMax:{}}}
+// only a real subject name may replace a period's subject — e.g. "Spelling quiz … Consonants (sp - sw)" must stay English
+const SUBJ_EXTRA=['تفكير','دراسات','تربية','مهارات','اجتماع'];
+function knownSubj(s){s=String(s||'').trim().toLowerCase();return isEng(s)||SUBJ.some(([w])=>s.includes(w))||SUBJ_EXTRA.some(w=>s.includes(w))}
 function fixExamPeriods(d){
   let ch=false;(d&&d.periods||[]).forEach(p=>{
-    if(p.replaced)return;const t=(p.lesson||'')+' '+(p.homework||'');
+    if(p.replaced){if(!knownSubj(p.subject)||isEng(p.replaced)){p.subject=p.replaced;delete p.replaced;ch=true}return}  // undo an earlier bad rename
+    if(isEng(p.subject))return;  // the timetable comes from the Arabic plan; English-plan text never renames a period
+    const t=(p.lesson||'')+' '+(p.homework||'');
     if(!/اختبار|quiz|test|exam/i.test(t))return;
     let m=t.match(/\(([^)]*[؀-ۿA-Za-z][^)]*)\)/),sub=m&&m[1].trim();
     if(!sub){const m2=t.match(/لمادة\s+([؀-ۿ]+(?:\s+[؀-ۿ]+)?)/);sub=m2&&m2[1].trim()}
-    if(!sub||/إملاء|املاء/.test(sub)||sub.length>30)return;
+    if(!sub||/إملاء|املاء/.test(sub)||sub.length>30||!knownSubj(sub))return;
     if(subjectKeyRaw(sub)===subjectKeyRaw(p.subject))return;
     p.replaced=p.subject;p.subject=sub;ch=true;
   });return ch;
@@ -31,6 +36,7 @@ const AR_FIX=[['ثالثاء','ثلاثاء'],['سالمي','سلامي'],['إس
   ['ماليين','ملايين'],['تالوة','تلاوة'],['الوالء','الولاء'],['مدخالت','مدخلات'],['خاليا','خلايا'],['سالسل','سلاسل'],['عالقات','علاقات'],['الالفقاري','اللافقاري'],['أالحظ','ألاحظ'],['ترحيب بالطالب','ترحيب بالطلاب'],['المبتأ','المبتدأ']];
 // apply AR_FIX to every string already saved in plans / exam sets (they were imported before a fix was added)
 function fixSavedText(r){let ch=false;const walk=o=>{if(Array.isArray(o)){o.forEach((v,i)=>{if(typeof v==='string'){const n=arFixStr(v);if(n!==v){o[i]=n;ch=true}}else if(v&&typeof v==='object')walk(v)})}else for(const k in o){const v=o[k];if(typeof v==='string'){const n=arFixStr(v);if(n!==v){o[k]=n;ch=true}}else if(v&&typeof v==='object')walk(v)}};walk(r.plans||{});walk(r.examSets||[]);return ch}
+function fixPlans(r){let ch=false;Object.values(r.plans||{}).forEach(ps=>(ps||[]).forEach(pl=>(pl.days||[]).forEach(d=>{if(fixExamPeriods(d))ch=true})));return ch}
 function arFixStr(s){for(const[a,b]of AR_FIX)if(s.includes(a))s=s.split(a).join(b);return s}
 function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.kids){const d=defaults();const r=Object.assign(d,s);r.kids.forEach(k=>{if(!r.plans[k.id])r.plans[k.id]=[];if(!k.grade)k.grade=k.id==='ali'?4:k.id==='bader'?3:0;if(!k.books)k.books=k.id==='ali'?['Top Goal','Family and Friends']:k.id==='bader'?['We Can','Family and Friends']:[]});let ch=false;const mig=!r.mig3;(r.examSets||[]).forEach(s=>{if(s.period===undefined){s.period=guessPeriod(s.title);ch=true}(s.exams||[]).forEach(e=>{const o=`ex|${s.kid}|${e.date}|${subjectKey(e.subject)}`,n=`ex|${s.kid}|${s.id}|${e.date}|${subjectKey(e.subject)}`;if(r.grades&&r.grades[o]&&!r.grades[n]){r.grades[n]=r.grades[o];delete r.grades[o];ch=true}})});Object.values(r.plans).forEach(ps=>ps.forEach(pl=>(pl.days||[]).forEach(d=>{if(fixHolidayDay(d))ch=true;if(fixExamPeriods(d))ch=true;if(mig)(d.periods||[]).forEach(p=>{if(p.test&&!/quiz|إملاء|املاء/i.test((p.lesson||'')+' '+(p.homework||''))){delete p.test;ch=true}})})));if(mig){r.mig3=1;ch=true}if(fixSavedText(r))ch=true;if(ch)try{localStorage.setItem(KEY,JSON.stringify(r))}catch(e){}return r}}catch(e){console.error(e);LOAD_ERR=e;try{const raw=localStorage.getItem(KEY);if(raw)localStorage.setItem(KEY+'.rescue',raw)}catch(_){}}return defaults()}
 var LOAD_ERR=null;
@@ -209,7 +215,8 @@ const BOOK_ALIASES={familyandfriends:['fandf','ff','familyfriends','familiyandfr
 function bookHit(t,b){const n=normBook(b);if(!n)return false;if(t.includes(n))return true;return(BOOK_ALIASES[n]||[]).some(a=>a.length>2?t.includes(a):new RegExp('(^|[^a-z])'+a+'([^a-z]|$)').test(t))}
 function englishBook(k,p){
   const raw=String(p.lesson+' '+p.homework).toLowerCase().replace(/&/g,' and '),t=normBook(raw),spaced=raw.replace(/[^a-z0-9]+/g,' ');
-  const hit=b=>bookHit(t,b)||(normBook(b)==='familyandfriends'&&/(^| )(f and f|ff)( |$)/.test(spaced));
+  const SHORT={topgoal:'tg',wecan:'wc'};  // the plans sometimes write "TG — SB — P: 4-7" / "WC — Unit 1"
+  const hit=b=>bookHit(t,b)||(normBook(b)==='familyandfriends'&&/(^| )(f and f|ff)( |$)/.test(spaced))||(SHORT[normBook(b)]&&new RegExp('(^| )'+SHORT[normBook(b)]+'( |$)').test(spaced));
   const own=(k.books||[]).find(hit);if(own)return shortBook(own);
   const any=[...new Set([...S.kids.flatMap(x=>x.books||[]),...KNOWN_BOOKS])].find(hit);return any?shortBook(any):'';
 }
@@ -527,7 +534,7 @@ function parseEnglish(items){
   const hy=median(present.map(i=>i.y)),centers=hd.map(i=>i?cx(i):null);
   const cs=centers.filter(c=>c!=null),cut=cs[0]-(cs[1]-cs[0])/2;
   const lab=re=>items.find(i=>i.x+i.w<cut+5&&i.y>hy&&re.test(i.s.trim()));
-  const cw=lab(/class\s*work/i),hw=lab(/home\s*work/i),sm=lab(/^science/i),sp=lab(/^spelling$/i);
+  const cw=lab(/class\s*work|^lessons?$/i),hw=lab(/home\s*work/i),sm=lab(/^science/i),sp=lab(/^spelling$/i);
   const qh=items.find(i=>/question of the week/i.test(i.s)),vh=items.find(i=>/new vocab/i.test(i.s)),bh=items.find(i=>/brilliant/i.test(i.s));
   const bottom=qh?qh.y-5:Infinity;
   const ys=[cw,hw,sm,sp].map(x=>x?x.y:null);

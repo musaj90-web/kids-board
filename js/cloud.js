@@ -17,7 +17,7 @@ function cloudPush(){
   CLOUD.done=Object.assign({},done);
   if(Object.keys(u).length)CLOUD.ref.update(u).catch(e=>{console.error(e);CLOUD.err=(CLOUD.user?CLOUD.user.email+': ':'')+(e.code||e.message);toast('⚠️ تعذّرت المزامنة — '+CLOUD.err)});
 }
-function applyState(v){CLOUD.state=v;S=Object.assign(defaults(),JSON.parse(v),{done:S.done});LOAD_ERR=null;localSave();if(fixSavedText(S)){localSave();setTimeout(cloudPush,0)}}
+function applyState(v){CLOUD.state=v;S=Object.assign(defaults(),JSON.parse(v),{done:S.done});LOAD_ERR=null;localSave();if(fixSavedText(S)|fixPlans(S)){localSave();setTimeout(cloudPush,0)}}
 function applyDone(v){const m={};for(const k in v||{})m[decodeURIComponent(k)]=true;CLOUD.done=Object.assign({},m);S.done=m;localSave()}
 // don't redraw under the parent while they type or review a PDF; retry shortly
 function cloudBusy(){const a=document.activeElement;return document.getElementById('layer').innerHTML.trim()!==''||(V.name==='parent'&&a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))}
