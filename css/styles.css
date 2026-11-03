@@ -270,7 +270,11 @@ body.tvmode main{max-width:none;padding:0}
 .tvhw .check{width:calc(var(--u)*2.3);height:calc(var(--u)*2.3);flex:none;border-radius:calc(var(--u)*.6);border:calc(var(--u)*.22) solid var(--kid);display:grid;place-items:center;color:#fff;font-weight:800;font-size:calc(var(--u)*1.4)}
 .tvhw>div{display:flex;flex-direction:column;gap:calc(var(--u)*.15);min-width:0}
 .tvhw .chip{font-size:calc(var(--u)*.95)}
+.tvhwtop{display:flex;align-items:center;gap:calc(var(--u)*.5);flex-wrap:wrap}
+.tvtopic{font-size:calc(var(--u)*1.05);font-weight:700;color:var(--muted)}
 .tvhw .txt{font-size:calc(var(--u)*1.45);font-weight:700;line-height:1.35}
+.tvhw .txt small{font-size:calc(var(--u)*1);color:var(--muted);font-weight:600}
+.tvdet{font-size:calc(var(--u)*1.15);margin-top:calc(var(--u)*.2);font-weight:600}
 .tvhw.done{background:#f0fdf4;border-color:#bbf7d0}
 .tvhw.done .check{background:var(--ok);border-color:var(--ok)}
 .tvhw.done .txt{text-decoration:line-through;color:var(--muted)}

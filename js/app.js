@@ -33,7 +33,8 @@ function fixHolidayDay(d){
 }
 // The plan PDFs encode the لا ligature so pdf.js reads it back as "ال"; fix words that can't be right as extracted (plus one typo in the source PDFs)
 const AR_FIX=[['ثالثاء','ثلاثاء'],['سالمي','سلامي'],['إسالم','إسلام'],['صالة','صلاة'],['مالحظ','ملاحظ'],['أخالق','أخلاق'],['عالمة','علامة'],['عالمات','علامات'],['إمالء','إملاء'],['ف المعرفة','في المعرفة'],
-  ['ماليين','ملايين'],['تالوة','تلاوة'],['الوالء','الولاء'],['مدخالت','مدخلات'],['خاليا','خلايا'],['سالسل','سلاسل'],['عالقات','علاقات'],['الالفقاري','اللافقاري'],['أالحظ','ألاحظ'],['ترحيب بالطالب','ترحيب بالطلاب'],['المبتأ','المبتدأ']];
+  ['ماليين','ملايين'],['تالوة','تلاوة'],['الوالء','الولاء'],['مدخالت','مدخلات'],['خاليا','خلايا'],['سالسل','سلاسل'],['عالقات','علاقات'],['الالفقاري','اللافقاري'],['أالحظ','ألاحظ'],['ترحيب بالطالب','ترحيب بالطلاب'],['المبتأ','المبتدأ'],
+  ['مرسالت','مرسلات'],['أوالد','أولاد'],['السالمة على','السلامة على'],['الالوهية','الألوهية'],['من ثالثة','من ثلاثة']];
 // apply AR_FIX to every string already saved in plans / exam sets (they were imported before a fix was added)
 function fixSavedText(r){let ch=false;const walk=o=>{if(Array.isArray(o)){o.forEach((v,i)=>{if(typeof v==='string'){const n=arFixStr(v);if(n!==v){o[i]=n;ch=true}}else if(v&&typeof v==='object')walk(v)})}else for(const k in o){const v=o[k];if(typeof v==='string'){const n=arFixStr(v);if(n!==v){o[k]=n;ch=true}}else if(v&&typeof v==='object')walk(v)}};walk(r.plans||{});walk(r.examSets||[]);return ch}
 function fixPlans(r){let ch=false;Object.values(r.plans||{}).forEach(ps=>(ps||[]).forEach(pl=>(pl.days||[]).forEach(d=>{if(fixExamPeriods(d))ch=true})));return ch}
@@ -57,7 +58,8 @@ function subjColor(s){s=String(s||'').toLowerCase();for(const[w,c]of SUBJ)if(s.i
 const chip=s=>`<span class="chip" style="--c:${subjColor(s)}" dir="auto">${esc(s)}</span>`;
 const hasHw=h=>h&&!/^[.\s…·\-]*$/.test(h);
 
-function testWords(plan,p){const w=plan&&plan.extras&&plan.extras.spelling;return p&&p.test&&w&&w.length&&/spell|إملاء/i.test((p.lesson||'')+' '+(p.subject||'')+' '+(p.homework||''))?w:null}
+// the plan's spelling words come from the English plan, so they belong only to the English spelling quiz (not to an Arabic إملاء)
+function testWords(plan,p){const w=plan&&plan.extras&&plan.extras.spelling;return p&&p.test&&w&&w.length&&isEng(p.subject)&&/spell/i.test((p.lesson||'')+' '+(p.homework||''))?w:null}
 const wordsHtml=w=>w?`<div class="words sw">${w.map(x=>`<span class="word">${esc(x)}</span>`).join('')}</div>`:'';
 function upcomingTests(plan,date){
   const ds=plan.days.map(d=>d.date).sort(),i=ds.indexOf(date),next=i>=0&&i<ds.length-1?ds[i+1]:null,out=[];
@@ -134,23 +136,38 @@ function tvKid(k){
   const n=Math.round((pd(date)-pd(t))/864e5),lbl=n===0?'اليوم':n===1?'غداً — '+dayName(date):dayName(date)+' '+fmt(date);
   const ring=hol?`<div class="ring" style="background:linear-gradient(135deg,#fde68a,#7dd3fc)"><div>🏖️</div></div>`:`<div class="ring" style="background:conic-gradient(${k.color} ${p}%,#e5e7eb 0)"><div>${dn}/${its.length}</div></div>`;
   let h=head(`<span>${lbl} · ${esc(plan.weekLabel||('الأسبوع '+plan.week))}</span><span>⭐ ${ws.stars} نجمة هذا الأسبوع${avg?` · 📊 المعدل ${avg.avg}%`:''}</span>`,ring);
-  // alerts: official exams in the next 7 days, then quizzes / spelling tests from the weekly plan
-  const ex=upcomingExams(k.id,t,7).map(e=>`<div class="tvalert exam ${daysTo(e.date)===0?'soon':''}"><b>📝 ${whenTxt(e.date)} (${dayName(e.date)}): اختبار ${esc(e.subject)}${e.type?' — '+esc(e.type):''}</b>${e.parts.length?`<div class="xparts">${e.parts.map(x=>`<span dir="auto">${esc(x)}</span>`).join('')}</div>`:''}</div>`);
-  const qz=hol?[]:upcomingTests(plan,date).filter(x=>!officialFor(k.id,x.date,x.p.subject)).map(x=>`<div class="tvalert ${x.today?'soon':''}"><b>${x.today?'📝 اليوم':'⏰ غداً ('+dayName(x.date)+')'}: ${esc(x.p.subject)} — <span dir="auto">${esc(x.p.lesson)}</span></b>${wordsHtml(x.words)}</div>`);
-  if(f&&f.day.note&&!hol)h+=`<div class="note">📢 ${esc(f.day.note)}</div>`;
-  h+=ex.join('')+qz.join('');
-  if(hol)h+=holidayBanner(f.day,false);
-  const hw=its.map(i=>`<div class="tvhw ${i.done?'done':''}"><span class="check">${i.done?'✓':''}</span><div>${i.kind==='hw'?chip(i.subject):'<span class="chip" style="--c:#b45309">مهمة إضافية</span>'}<span class="txt" dir="auto">${esc(i.text)}</span></div></div>`).join('');
-  // classes: the shown day, or from 5 PM to 7 AM the next school day (so the bag can be packed the night before)
+  // classes: the shown day, or from 5 PM to 7 AM the next school day (so the bag can be packed the night before) — then it goes on top
   const ev=tvEvening(),nd=ev&&tvNextDay(k.id),cd=nd||date,cf=findDay(k.id,cd),cplan=planFor(k.id,cd)||plan,cn=daysTo(cd);
   const ctitle=ev?`🎒 جدول ${cn===1?'الغد':cn===0?'اليوم':'يوم '+dayName(cd)} · ${dayName(cd)} ${fmt(cd)}`:'🏫 الحصص';
   const per=pr=>{const b=isEng(pr.subject)&&englishBook(k,pr,cplan);return`<span class="tvp ${isExamP(k.id,cd,pr)?'x':''}" style="--c:${subjColor(pr.subject)}" dir="auto">${subjIcon(pr.subject)} ${esc(pr.subject)}${b?' · '+esc(b):''}</span>`};
-  if(ev&&!nd)h+=`<div class="tvsec ev"><h3>🎒 جدول اليوم الدراسي القادم</h3><p class="tvhint">📭 لم تُحمّل خطة الأسبوع القادم بعد</p></div>`;
-  else if(cf&&cf.day.holiday){if(ev)h+=`<div class="tvsec ev"><h3>${ctitle}</h3><p class="tvhint">🏖️ ${esc(cf.day.note||'إجازة')} — لا مدرسة</p></div>`}
-  else if(cf&&cf.day.periods.length)h+=`<div class="tvsec ${ev?'ev':''}"><h3>${ctitle}</h3><div class="tvper">${cf.day.periods.map(per).join('')}</div></div>`;
+  let cls='';
+  if(ev&&!nd)cls=`<div class="tvsec ev"><h3>🎒 جدول اليوم الدراسي القادم</h3><p class="tvhint">📭 لم تُحمّل خطة الأسبوع القادم بعد</p></div>`;
+  else if(cf&&cf.day.holiday){if(ev)cls=`<div class="tvsec ev"><h3>${ctitle}</h3><p class="tvhint">🏖️ ${esc(cf.day.note||'إجازة')} — لا مدرسة</p></div>`}
+  else if(cf&&cf.day.periods.length)cls=`<div class="tvsec ${ev?'ev':''}"><h3>${ctitle}</h3><div class="tvper">${cf.day.periods.map(per).join('')}</div></div>`;
+  if(ev)h+=cls;
+  // announcements: official exams in the next 7 days, then dictation / spelling / quizzes from the plan (the day before and the morning of)
+  h+=upcomingExams(k.id,t,7).map(e=>`<div class="tvalert exam ${daysTo(e.date)===0?'soon':''}"><b>📝 ${whenTxt(e.date)} (${dayName(e.date)}): اختبار ${esc(e.subject)}${e.type?' — '+esc(e.type):''}</b>${e.parts.length?`<div class="xparts">${e.parts.map(x=>`<span dir="auto">${esc(x)}</span>`).join('')}</div>`:''}</div>`).join('');
+  h+=tvTests(k).map(x=>{const eng=isEng(x.p.subject),dict=/إملاء|املاء/.test(x.p.lesson+' '+x.p.homework),n=daysTo(x.date);
+    const what=eng&&/spell/i.test(x.p.lesson+' '+x.p.homework)?`Spelling quiz${x.book?' · '+esc(x.book):''}`:dict?`إملاء ${esc(x.p.subject)}`:`اختبار ${esc(x.p.subject)}`;
+    const det=eng?'':[x.p.lesson,x.p.homework].filter(s=>s&&!isEmptyCell(s)).map(esc).join(' — ');
+    return`<div class="tvalert ${n===0?'soon':''}"><b>${n===0?'📝':'⏰'} ${whenTxt(x.date)} (${dayName(x.date)}): <span dir="auto">${what}</span></b>${det?`<div class="tvdet" dir="auto">${det}</div>`:''}${wordsHtml(x.words)}</div>`}).join('');
+  if(f&&noteOk(f.day.note)&&!hol)h+=`<div class="note">📢 ${esc(f.day.note)}</div>`;
+  if(hol)h+=holidayBanner(f.day,false);
+  if(!ev)h+=cls;
+  // homework: subject + the class topic it belongs to, then the homework itself
+  const hw=its.map(i=>{const top=i.kind==='hw'&&i.sub&&!isEmptyCell(i.sub)&&!/منفصلة/.test(i.sub)&&i.sub!==i.text?i.sub:'';
+    return`<div class="tvhw ${i.done?'done':''}"><span class="check">${i.done?'✓':''}</span><div><div class="tvhwtop">${i.kind==='hw'?chip(i.subject):'<span class="chip" style="--c:#b45309">مهمة إضافية</span>'}${top?`<span class="tvtopic" dir="auto">${esc(top)}</span>`:''}</div><span class="txt" dir="auto">${top?'<small>الواجب: </small>':''}${esc(i.text)}</span></div></div>`}).join('');
   if(!hol||its.length)h+=`<div class="tvsec"><h3>📝 الواجبات</h3>${hw?`<div class="tvhwl">${hw}</div>`:'<p class="tvhint">لا توجد واجبات 😊</p>'}${its.length&&dn===its.length?`<div class="bravo">🎉 أحسنت يا ${esc(k.name)}! أنهيت كل المهام</div>`:''}</div>`;
   return`<section class="tvkid" style="--kid:${k.color}">${h}</section>`;
 }
+// plan tests to announce: on the school day before (all day) and on the day itself until 5 PM
+function tvTests(k){
+  const t=todayKey(),hr=new Date().getHours(),nx=(allDays(k.id).find(x=>x.day.date>t)||{day:{}}).day.date,out=[];
+  allDays(k.id).forEach(({plan,day})=>{if(day.holiday||!((day.date===t&&hr<17)||day.date===nx))return;
+    day.periods.forEach(p=>{if(p.test&&!officialFor(k.id,day.date,p.subject))out.push({date:day.date,p,words:testWords(plan,p),book:isEng(p.subject)&&englishBook(k,p,plan)})})});
+  return out;
+}
+const noteOk=s=>/[\p{L}]{2}/u.test(s||'');  // skip stray marks like ")" read from the PDF
 // 5 PM–midnight: the next school day after today; midnight–7 AM: the school day starting today; otherwise null (normal)
 const tvEvening=()=>{const hr=new Date().getHours();return hr>=17||hr<7};
 function tvNextDay(kid){
@@ -199,7 +216,7 @@ function renderKid(){
   const dn=its.filter(i=>i.done).length,p=its.length?Math.round(dn/its.length*100):0,ws=weekStats(k.id,plan);
   const item=i=>`<button class="item ${i.done?'done':''}" data-toggle="${i.id}"><span class="check">${i.done?'✓':''}</span><span class="body">${i.kind==='hw'?chip(i.subject):'<span class="chip" style="--c:#b45309">مهمة إضافية</span>'}<span class="txt" dir="auto">${esc(i.text)}</span>${i.sub?`<small dir="auto">الدرس: ${esc(i.sub)}</small>`:''}</span><span class="pts">⭐ ${i.pts}</span></button>`;
   h+=`<div class="cols dayc"><div>
-    ${f&&f.day.note?`<div class="note">📢 ${esc(f.day.note)}</div>`:''}
+    ${f&&noteOk(f.day.note)?`<div class="note">📢 ${esc(f.day.note)}</div>`:''}
     ${(()=>{const ds=plan.days.map(d=>d.date).sort(),i=ds.indexOf(V.date),nx=i>=0?plan.days.find(d=>d.date===ds[i+1]):null;return nx&&nx.holiday?`<div class="holiday small"><div class="holsun">🏖️</div><div><b>غداً ${esc(nx.note||'إجازة')}</b><span>لا مدرسة يوم ${dayName(nx.date)}</span></div></div>`:''})()}
     ${upcomingExams(k.id,V.date,3).map(e=>{const n=Math.round((pd(e.date)-pd(V.date))/864e5);return`<div class="testbox exam"><b>${n===0?'📝 اليوم':n===1?'⏰ غداً ('+dayName(e.date)+')':'📅 بعد '+n+' أيام ('+dayName(e.date)+')'}: اختبار ${esc(e.subject)}${e.type?' — '+esc(e.type):''}</b>${e.parts.length?`<div class="hint" style="margin-top:4px">${n===0?'الجزء المقرر':'راجع'}:</div><div class="xparts">${e.parts.map(p=>`<span dir="auto">${esc(p)}</span>`).join('')}</div>`:''}</div>`}).join('')}
     ${upcomingTests(plan,V.date).map(x=>`<div class="testbox"><b>${x.today?'📝 اليوم':'⏰ غداً ('+dayName(x.date)+')'}: اختبار ${esc(x.p.subject)} — <span dir="auto">${esc(x.p.lesson)}</span></b>${x.words?`<div class="hint" style="margin-top:4px">${x.today?'كلمات الإملاء':'راجع كلمات الإملاء الليلة'}:</div>${wordsHtml(x.words)}`:''}</div>`).join('')}
