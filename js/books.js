@@ -3,8 +3,18 @@
 //   off: PDF page = printed page + off · from/to: printed pages this file covers (books split into parts) · solFor: the book a solutions file belongs to
 const BOOK_KINDS={sb:'كتاب الطالب',wb:'كتاب النشاط',sol:'الحلول'};
 const bookById=id=>(S.books||[]).find(b=>b.id===id);
-const subjNorm=s=>subjectKeyRaw(subjectKey(s)).toLowerCase();
-const bookLabel=(b,short)=>!b?'':(short?'':(isEng(b.subject)?'English':b.subject)+' · ')+(b.eng?shortBook(b.eng)+' · ':'')+BOOK_KINDS[b.kind];
+// one clean name per subject; plan PDFs spell them many ways ("(الرياضيات", "science", "اللغة العربية") — [name, words that identify it]
+const SUBJ_CANON=[['لغتي',['لغتي','اللغة العربية','لغة عربية']],['الرياضيات',['رياضيات']],['العلوم',['علوم']],['Math',['math']],['Science',['science']],
+  ['الدراسات الإسلامية',['إسلامية','اسلامية']],['القرآن الكريم',['قرآن','قران']],['الدراسات الاجتماعية',['اجتماعية']],['المهارات الرقمية',['رقمية']],
+  ['المهارات الحياتية',['حياتية']],['التربية الفنية',['فنية']],['التربية البدنية',['بدنية']],['الخط العربي',['الخط']],['التفكير الناقد',['تفكير']],['قدرات',['قدرات']],['نافس',['نافس']]];
+const subjClean=s=>String(s||'').replace(/[()[\]{}«»"'.:،,؛\-–—]/g,' ').replace(/\s+/g,' ').trim();
+// the clean name, or null when the text names two subjects at once (e.g. "الرياضيات العلوم", a merged PDF cell)
+function canonSubj(s){
+  const t=subjClean(s).toLowerCase();if(!t)return null;if(subjectKey(t)==='English'||isEng(t))return'English';
+  const hits=SUBJ_CANON.filter(([,ws])=>ws.some(w=>t.includes(w)));return hits.length===1?hits[0][0]:null;
+}
+const subjNorm=s=>canonSubj(s)||subjectKeyRaw(subjectKey(subjClean(s))).toLowerCase();
+const bookLabel=(b,short)=>!b?'':(short?'':(canonSubj(b.subject)||subjClean(b.subject))+' · ')+(b.eng?shortBook(b.eng)+' · ':'')+BOOK_KINDS[b.kind];
 const arDigits=s=>String(s||'').replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
 
 // printed page(s) named in plan text: "حل ص119", "ص111 / 112", "SB P: 29", "P: 34-35", "Ps: 20:21", "WB — 156-157"
@@ -88,7 +98,7 @@ async function drawBook(){
 let BKUP='';
 function booksCard(){
   const bs=S.books||[],kidOpts=S.kids.map(k=>`<option value="${k.id}">${esc(k.name)}</option>`).join('');
-  const subs=[...new Set(S.kids.flatMap(k=>allDays(k.id).flatMap(x=>x.day.periods.map(p=>subjectKey(p.subject)))))].filter(s=>s&&s!=='English').sort();
+  const subs=SUBJ_CANON.map(c=>c[0]);
   const engs=[...new Set(S.kids.flatMap(k=>k.books||[]))];
   const bookOpts=bs.filter(b=>b.kind!=='sol').map(b=>`<option value="${b.id}">${esc(kidById(b.kid)?.name||'')} · ${esc(bookLabel(b))}</option>`).join('');
   let h=`<div class="card"><h3>📚 الكتب والحلول</h3>
