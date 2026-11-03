@@ -299,3 +299,12 @@ body.tvmode main{max-width:none;padding:0}
   #pdfPrint img{display:block;width:100%;height:auto;max-height:100vh;object-fit:contain;break-after:page}
   #pdfPrint img:last-child{break-after:auto}
 }
+/* ---------- books & solutions ---------- */
+.bkbtns{display:flex;gap:6px;margin-top:4px;flex-wrap:wrap}
+.bkbtn{display:inline-block;border:1.5px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;border-radius:99px;padding:0 10px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
+.bkbtn.sol{border-color:#a7f3d0;background:#ecfdf5;color:#047857}
+.bkbtn:hover{border-color:currentColor}
+.tvhw .bkbtns{gap:calc(var(--u)*.4);margin-top:calc(var(--u)*.2)}
+.tvhw .bkbtn{font-size:calc(var(--u)*.95);padding:0 calc(var(--u)*.7)}
+.bvnav{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.modal.big .bvnav input{width:80px;text-align:center}

@@ -1,7 +1,7 @@
 
 /* ================= cloud sync (Firebase Realtime Database) ================= */
 // Paste the web-app config from Firebase console → Project settings → Your apps. null = local only (as before).
-const FB_CONFIG={apiKey:'AIzaSyDT66kuHy9UCZoDncIJPERPY-0KIXnnmHY',authDomain:'kids-board-2026.firebaseapp.com',databaseURL:'https://kids-board-2026-default-rtdb.europe-west1.firebasedatabase.app',projectId:'kids-board-2026'};
+const FB_CONFIG={apiKey:'AIzaSyDT66kuHy9UCZoDncIJPERPY-0KIXnnmHY',authDomain:'kids-board-2026.firebaseapp.com',databaseURL:'https://kids-board-2026-default-rtdb.europe-west1.firebasedatabase.app',projectId:'kids-board-2026',storageBucket:'kids-board-2026.firebasestorage.app'};
 // /family/state = everything except S.done, as one JSON string; /family/done/<key> = true per ticked item (so ticks from different devices don't overwrite each other)
 const CLOUD={ref:null,user:null,ready:false,online:false,state:null,done:{},pending:false};
 const encK=k=>encodeURIComponent(k).replace(/\./g,'%2E');

@@ -57,6 +57,7 @@ const kidById=id=>S.kids.find(k=>k.id===id);
 function subjColor(s){s=String(s||'').toLowerCase();for(const[w,c]of SUBJ)if(s.includes(w))return c;return'#6b7280'}
 const chip=s=>`<span class="chip" style="--c:${subjColor(s)}" dir="auto">${esc(s)}</span>`;
 const hasHw=h=>h&&!/^[.\s…·\-]*$/.test(h);
+const bkB=(...a)=>typeof bookBtns==='function'?bookBtns(...a):'';  // 📖/✅ buttons, from books.js
 
 // the plan's spelling words come from the English plan, so they belong only to the English spelling quiz (not to an Arabic إملاء)
 function testWords(plan,p){const w=plan&&plan.extras&&plan.extras.spelling;return p&&p.test&&w&&w.length&&isEng(p.subject)&&/spell/i.test((p.lesson||'')+' '+(p.homework||''))?w:null}
@@ -156,7 +157,7 @@ function tvKid(k){
   if(!ev)h+=cls;
   // homework: subject + the class topic it belongs to, then the homework itself
   const hw=its.map(i=>{const top=i.kind==='hw'&&i.sub&&!isEmptyCell(i.sub)&&!/منفصلة/.test(i.sub)&&i.sub!==i.text?i.sub:'';
-    return`<div class="tvhw ${i.done?'done':''}"><span class="check">${i.done?'✓':''}</span><div><div class="tvhwtop">${i.kind==='hw'?chip(i.subject):'<span class="chip" style="--c:#b45309">مهمة إضافية</span>'}${top?`<span class="tvtopic" dir="auto">${esc(top)}</span>`:''}</div><span class="txt" dir="auto">${top?'<small>الواجب: </small>':''}${esc(i.text)}</span></div></div>`}).join('');
+    return`<div class="tvhw ${i.done?'done':''}"><span class="check">${i.done?'✓':''}</span><div><div class="tvhwtop">${i.kind==='hw'?chip(i.subject):'<span class="chip" style="--c:#b45309">مهمة إضافية</span>'}${top?`<span class="tvtopic" dir="auto">${esc(top)}</span>`:''}</div><span class="txt" dir="auto">${top?'<small>الواجب: </small>':''}${esc(i.text)}</span>${i.kind==='hw'?bkB(k.id,date,i.id.split('|')[2].slice(1),'hw'):''}</div></div>`}).join('');
   if(!hol||its.length)h+=`<div class="tvsec"><h3>📝 الواجبات</h3>${hw?`<div class="tvhwl">${hw}</div>`:'<p class="tvhint">لا توجد واجبات 😊</p>'}${its.length&&dn===its.length?`<div class="bravo">🎉 أحسنت يا ${esc(k.name)}! أنهيت كل المهام</div>`:''}</div>`;
   return`<section class="tvkid" style="--kid:${k.color}">${h}</section>`;
 }
@@ -214,7 +215,7 @@ function renderKid(){
   if(fh&&fh.day.holiday){const tk0=items(k.id,V.date);return wrap(h+`<div class="cols"><div>${holidayBanner(fh.day,true)}${tk0.length?`<div class="card"><h3>✅ مهام إضافية</h3>${tk0.map(i=>`<button class="item ${i.done?'done':''}" data-toggle="${i.id}"><span class="check">${i.done?'✓':''}</span><span class="body"><span class="txt" dir="auto">${esc(i.text)}</span></span><span class="pts">⭐ ${i.pts}</span></button>`).join('')}</div>`:''}</div><div>${extrasCard(plan)}</div></div>`)}
   const f=findDay(k.id,V.date),its=items(k.id,V.date),hw=its.filter(i=>i.kind==='hw'),tk=its.filter(i=>i.kind==='task');
   const dn=its.filter(i=>i.done).length,p=its.length?Math.round(dn/its.length*100):0,ws=weekStats(k.id,plan);
-  const item=i=>`<button class="item ${i.done?'done':''}" data-toggle="${i.id}"><span class="check">${i.done?'✓':''}</span><span class="body">${i.kind==='hw'?chip(i.subject):'<span class="chip" style="--c:#b45309">مهمة إضافية</span>'}<span class="txt" dir="auto">${esc(i.text)}</span>${i.sub?`<small dir="auto">الدرس: ${esc(i.sub)}</small>`:''}</span><span class="pts">⭐ ${i.pts}</span></button>`;
+  const item=i=>`<button class="item ${i.done?'done':''}" data-toggle="${i.id}"><span class="check">${i.done?'✓':''}</span><span class="body">${i.kind==='hw'?chip(i.subject):'<span class="chip" style="--c:#b45309">مهمة إضافية</span>'}<span class="txt" dir="auto">${esc(i.text)}</span>${i.sub?`<small dir="auto">الدرس: ${esc(i.sub)}</small>`:''}${i.kind==='hw'?bkB(k.id,V.date,i.id.split('|')[2].slice(1),'hw'):''}</span><span class="pts">⭐ ${i.pts}</span></button>`;
   h+=`<div class="cols dayc"><div>
     ${f&&noteOk(f.day.note)?`<div class="note">📢 ${esc(f.day.note)}</div>`:''}
     ${(()=>{const ds=plan.days.map(d=>d.date).sort(),i=ds.indexOf(V.date),nx=i>=0?plan.days.find(d=>d.date===ds[i+1]):null;return nx&&nx.holiday?`<div class="holiday small"><div class="holsun">🏖️</div><div><b>غداً ${esc(nx.note||'إجازة')}</b><span>لا مدرسة يوم ${dayName(nx.date)}</span></div></div>`:''})()}
@@ -226,7 +227,7 @@ function renderKid(){
     <div class="card"><h3>✅ مهام إضافية</h3>${tk.length?tk.map(item).join(''):'<p class="hint">لا توجد مهام إضافية. يضيفها ولي الأمر من 🔒</p>'}</div>
     <div class="wk-end">${extrasCard(plan)}</div>
   </div><div>
-    <div class="card"><h3>🏫 حصص يوم ${dayName(V.date)}</h3>${f?f.day.periods.map(pr=>`<div class="period"><span class="num">${pr.n}</span><div class="ptxt"><span class="subjlink" data-subj="${esc(subjectKey(pr.subject))}" title="ملخص المادة">${chip(pr.subject)}</span>${pr.replaced?`<small class="repl">بدلاً من ${esc(pr.replaced)}</small>`:''}<span dir="auto">${esc(pr.lesson)}</span>${wordsHtml(testWords(plan,pr))}</div>${isExamP(k.id,V.date,pr)?`<span class="badge">${pr.test?'اختبار قصير':'اختبار'}</span>`:''}</div>`).join(''):''}</div>
+    <div class="card"><h3>🏫 حصص يوم ${dayName(V.date)}</h3>${f?f.day.periods.map(pr=>`<div class="period"><span class="num">${pr.n}</span><div class="ptxt"><span class="subjlink" data-subj="${esc(subjectKey(pr.subject))}" title="ملخص المادة">${chip(pr.subject)}</span>${pr.replaced?`<small class="repl">بدلاً من ${esc(pr.replaced)}</small>`:''}<span dir="auto">${esc(pr.lesson)}</span>${bkB(k.id,V.date,pr.n,'lesson')}${wordsHtml(testWords(plan,pr))}</div>${isExamP(k.id,V.date,pr)?`<span class="badge">${pr.test?'اختبار قصير':'اختبار'}</span>`:''}</div>`).join(''):''}</div>
     <div class="wk-side">${extrasCard(plan)}</div>
   </div></div>`;
   return wrap(h);
@@ -385,6 +386,7 @@ function renderParent(){
     <label>النجوم<select id="tPts"><option>1</option><option>2</option><option>3</option></select></label>
     <button class="btn primary" data-act="addTask">إضافة</button></div>
     <ul class="list">${S.tasks.length?S.tasks.map(x=>`<li><span>${esc(x.title)} <small class="hint">— ${x.kid==='both'?'الاثنين':esc(kidById(x.kid)?.name)} · ${x.date==='daily'?'كل يوم':dayName(x.date)+' '+fmt(x.date)} · ⭐${x.points}</small></span><button class="btn sm danger" data-act="delTask" data-id="${x.id}">حذف</button></li>`).join(''):'<li class="hint">لا توجد مهام</li>'}</ul></div>`;
+  if(typeof booksCard==='function')h+=booksCard();
   h+=`</div><div>`;
   h+=`<div class="card"><h3>📊 ملخص الأسبوع</h3>`;
   S.kids.forEach(k=>{const date=defaultDate(k.id),plan=date&&planFor(k.id,date);
@@ -467,10 +469,15 @@ let PDFV=[],PDFBUF=null;
 // print: re-render the pages sharper than the on-screen canvases, then print only those (works on phones too)
 async function printPdf(){
   if(!PDFBUF)return toast('⏳ انتظر حتى يكتمل تحميل الملف');
+  try{const doc=await pdfjsLib.getDocument({data:PDFBUF.slice(),isEvalSupported:false,disableFontFace:true}).promise;return printDocPages(doc,[...Array(doc.numPages)].map((_,i)=>i+1))}
+  catch(e){console.error(e);toast('⚠️ تعذّرت الطباعة')}
+}
+// nums: 1-based PDF page numbers (also used to print book pages)
+async function printDocPages(doc,nums){
   toast('🖨️ جاري تجهيز الطباعة...');
   try{
-    const doc=await pdfjsLib.getDocument({data:PDFBUF.slice(),isEvalSupported:false,disableFontFace:true}).promise,imgs=[];let land=false;
-    for(let n=1;n<=doc.numPages;n++){const pg=await doc.getPage(n),vp=pg.getViewport({scale:2.5}),c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;if(vp.width>vp.height)land=true;
+    const imgs=[];let land=false;
+    for(const n of nums){const pg=await doc.getPage(n),vp=pg.getViewport({scale:2.5}),c=document.createElement('canvas');c.width=vp.width;c.height=vp.height;if(vp.width>vp.height)land=true;
       await pg.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;const im=new Image();im.src=c.toDataURL('image/png');imgs.push(im)}
     await Promise.all(imgs.map(i=>i.decode().catch(()=>{})));
     document.getElementById('pdfPrint')?.remove();document.getElementById('pdfPrintPage')?.remove();
@@ -865,6 +872,7 @@ function toggle(id,el){
 }
 
 async function act(a,el){
+  if(a.startsWith('book')&&typeof bookAct==='function')return bookAct(a,el);
   if(a==='askPin')return askPin();
   if(a==='checkPin')return checkPin();
   if(a==='closeModal')return closeModal();
