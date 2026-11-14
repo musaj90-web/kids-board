@@ -7,18 +7,25 @@ function defaults(){return{kids:[{id:'ali',name:'علي',emoji:'🦁',color:'#25
 // only a real subject name may replace a period's subject — e.g. "Spelling quiz … Consonants (sp - sw)" must stay English
 const SUBJ_EXTRA=['تفكير','دراسات','تربية','مهارات','اجتماع'];
 function knownSubj(s){s=String(s||'').trim().toLowerCase();return isEng(s)||SUBJ.some(([w])=>s.includes(w))||SUBJ_EXTRA.some(w=>s.includes(w))}
+// A period always keeps its timetable subject. (Older versions renamed it when the lesson text named another subject in
+// brackets — the PDFs give mangled brackets like "((لغتي الجميلة))", so that produced wrong subjects such as "(لغتي الجميلة".)
+// This undoes any such rename and strips stray brackets; exams are shown on top of the period instead (examForPeriod).
 function fixExamPeriods(d){
   let ch=false;(d&&d.periods||[]).forEach(p=>{
-    if(p.replaced){if(!knownSubj(p.subject)||isEng(p.replaced)){p.subject=p.replaced;delete p.replaced;ch=true}return}  // undo an earlier bad rename
-    if(isEng(p.subject))return;  // the timetable comes from the Arabic plan; English-plan text never renames a period
-    const t=(p.lesson||'')+' '+(p.homework||'');
-    if(!/اختبار|quiz|test|exam/i.test(t))return;
-    let m=t.match(/\(([^)]*[؀-ۿA-Za-z][^)]*)\)/),sub=m&&m[1].trim();
-    if(!sub){const m2=t.match(/لمادة\s+([؀-ۿ]+(?:\s+[؀-ۿ]+)?)/);sub=m2&&m2[1].trim()}
-    if(!sub||/إملاء|املاء/.test(sub)||sub.length>30||!knownSubj(sub))return;
-    if(subjectKeyRaw(sub)===subjectKeyRaw(p.subject))return;
-    p.replaced=p.subject;p.subject=sub;ch=true;
+    if(p.replaced){p.subject=p.replaced;delete p.replaced;ch=true}
+    const s=String(p.subject||''),c=cleanSubj(s);
+    if(c!==s){p.subject=c;ch=true}
   });return ch;
+}
+// the subject an exam period's text names, e.g. "الاختبار التكويني لمادة (الدراسات الاجتماعية)" → "الدراسات الاجتماعية"
+function examNameIn(p){
+  const t=((p.lesson||'')+' '+(p.homework||'')).replace(/[（]/g,'(').replace(/[）]/g,')');
+  if(!/اختبار|quiz|test|exam/i.test(t))return null;
+  let sub=null;const m=t.match(/[()]+\s*([^()]*[؀-ۿA-Za-z][^()]*?)\s*[()]+/);if(m)sub=m[1];
+  if(!sub){const m2=t.match(/لمادة\s+([؀-ۿ]+(?:\s+[؀-ۿ]+)?)/);sub=m2&&m2[1]}
+  sub=sub&&sub.replace(/[()]/g,'').trim();
+  if(!sub||/إملاء|املاء/.test(sub)||sub.length>30||!knownSubj(sub))return null;
+  return sub;
 }
 function subjectKeyRaw(s){s=String(s||'').trim().replace(/^ال/,'');return s.replace(/\s+/g,'')}
 function fixHolidayDay(d){
@@ -37,9 +44,12 @@ const AR_FIX=[['ثالثاء','ثلاثاء'],['سالمي','سلامي'],['إس
   ['مرسالت','مرسلات'],['أوالد','أولاد'],['السالمة على','السلامة على'],['الالوهية','الألوهية'],['من ثالثة','من ثلاثة']];
 // apply AR_FIX to every string already saved in plans / exam sets (they were imported before a fix was added)
 function fixSavedText(r){let ch=false;const walk=o=>{if(Array.isArray(o)){o.forEach((v,i)=>{if(typeof v==='string'){const n=arFixStr(v);if(n!==v){o[i]=n;ch=true}}else if(v&&typeof v==='object')walk(v)})}else for(const k in o){const v=o[k];if(typeof v==='string'){const n=arFixStr(v);if(n!==v){o[k]=n;ch=true}}else if(v&&typeof v==='object')walk(v)}};walk(r.plans||{});walk(r.examSets||[]);return ch}
-function fixPlans(r){let ch=false;Object.values(r.plans||{}).forEach(ps=>(ps||[]).forEach(pl=>(pl.days||[]).forEach(d=>{if(fixExamPeriods(d))ch=true})));return ch}
+const cleanSubj=s=>String(s||'').replace(/[()（）\[\]]/g,'').replace(/\s+/g,' ').trim();
+// clean every saved subject name (periods and exam schedules) of stray brackets read from the PDFs, e.g. "(لغتي الجميلة" → "لغتي الجميلة"
+function fixPlans(r){let ch=false;Object.values(r.plans||{}).forEach(ps=>(ps||[]).forEach(pl=>(pl.days||[]).forEach(d=>{if(fixExamPeriods(d))ch=true})));
+  (r.examSets||[]).forEach(s=>(s.exams||[]).forEach(e=>{const c=cleanSubj(e.subject);if(c!==e.subject){e.subject=c;ch=true}}));return ch}
 function arFixStr(s){for(const[a,b]of AR_FIX)if(s.includes(a))s=s.split(a).join(b);return s}
-function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.kids){const d=defaults();const r=Object.assign(d,s);r.kids.forEach(k=>{if(!r.plans[k.id])r.plans[k.id]=[];if(!k.grade)k.grade=k.id==='ali'?4:k.id==='bader'?3:0;if(!k.books)k.books=k.id==='ali'?['Top Goal','Family and Friends']:k.id==='bader'?['We Can','Family and Friends']:[]});let ch=false;const mig=!r.mig3;(r.examSets||[]).forEach(s=>{if(s.period===undefined){s.period=guessPeriod(s.title);ch=true}(s.exams||[]).forEach(e=>{const o=`ex|${s.kid}|${e.date}|${subjectKey(e.subject)}`,n=`ex|${s.kid}|${s.id}|${e.date}|${subjectKey(e.subject)}`;if(r.grades&&r.grades[o]&&!r.grades[n]){r.grades[n]=r.grades[o];delete r.grades[o];ch=true}})});Object.values(r.plans).forEach(ps=>ps.forEach(pl=>(pl.days||[]).forEach(d=>{if(fixHolidayDay(d))ch=true;if(fixExamPeriods(d))ch=true;if(mig)(d.periods||[]).forEach(p=>{if(p.test&&!/quiz|إملاء|املاء/i.test((p.lesson||'')+' '+(p.homework||''))){delete p.test;ch=true}})})));if(mig){r.mig3=1;ch=true}if(fixSavedText(r))ch=true;if(ch)try{localStorage.setItem(KEY,JSON.stringify(r))}catch(e){}return r}}catch(e){console.error(e);LOAD_ERR=e;try{const raw=localStorage.getItem(KEY);if(raw)localStorage.setItem(KEY+'.rescue',raw)}catch(_){}}return defaults()}
+function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.kids){const d=defaults();const r=Object.assign(d,s);r.kids.forEach(k=>{if(!r.plans[k.id])r.plans[k.id]=[];if(!k.grade)k.grade=k.id==='ali'?4:k.id==='bader'?3:0;if(!k.books)k.books=k.id==='ali'?['Top Goal','Family and Friends']:k.id==='bader'?['We Can','Family and Friends']:[]});let ch=false;const mig=!r.mig3;(r.examSets||[]).forEach(s=>{if(s.period===undefined){s.period=guessPeriod(s.title);ch=true}(s.exams||[]).forEach(e=>{const o=`ex|${s.kid}|${e.date}|${subjectKey(e.subject)}`,n=`ex|${s.kid}|${s.id}|${e.date}|${subjectKey(e.subject)}`;if(r.grades&&r.grades[o]&&!r.grades[n]){r.grades[n]=r.grades[o];delete r.grades[o];ch=true}})});Object.values(r.plans).forEach(ps=>ps.forEach(pl=>(pl.days||[]).forEach(d=>{if(fixHolidayDay(d))ch=true;if(fixExamPeriods(d))ch=true;if(mig)(d.periods||[]).forEach(p=>{if(p.test&&!/quiz|إملاء|املاء/i.test((p.lesson||'')+' '+(p.homework||''))){delete p.test;ch=true}})})));if(mig){r.mig3=1;ch=true}if(fixSavedText(r))ch=true;if(fixPlans(r))ch=true;if(ch)try{localStorage.setItem(KEY,JSON.stringify(r))}catch(e){}return r}}catch(e){console.error(e);LOAD_ERR=e;try{const raw=localStorage.getItem(KEY);if(raw)localStorage.setItem(KEY+'.rescue',raw)}catch(_){}}return defaults()}
 var LOAD_ERR=null;
 let S=load();
 function save(){if(LOAD_ERR){toast('⚠️ تعذّر تحميل البيانات المحفوظة — لم يتم الحفظ');return}try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('تعذّر الحفظ!')}if(typeof cloudPush==='function')cloudPush()}
@@ -140,7 +150,7 @@ function tvKid(k){
   // classes: the shown day, or from 5 PM to 7 AM the next school day (so the bag can be packed the night before) — then it goes on top
   const ev=tvEvening(),nd=ev&&tvNextDay(k.id),cd=nd||date,cf=findDay(k.id,cd),cplan=planFor(k.id,cd)||plan,cn=daysTo(cd);
   const ctitle=ev?`🎒 جدول ${cn===1?'الغد':cn===0?'اليوم':'يوم '+dayName(cd)} · ${dayName(cd)} ${fmt(cd)}`:'🏫 الحصص';
-  const per=pr=>{const b=isEng(pr.subject)&&englishBook(k,pr,cplan);return`<span class="tvp ${isExamP(k.id,cd,pr)?'x':''}" style="--c:${subjColor(pr.subject)}" dir="auto">${subjIcon(pr.subject)} ${esc(pr.subject)}${b?' · '+esc(b):''}</span>`};
+  const per=pr=>{const b=isEng(pr.subject)&&englishBook(k,pr,cplan);return`<span class="tvp ${isExamP(k.id,cd,pr)?'x':''}" style="--c:${subjColor(pr.subject)}" dir="auto">${subjIcon(pr.subject)} ${esc(pr.subject)}${b?' · '+esc(b):''}${(()=>{const x=examForPeriod(k.id,cd,pr);return x?` · 📝 ${esc(x)}`:''})()}</span>`};
   let cls='';
   if(ev&&!nd)cls=`<div class="tvsec ev"><h3>🎒 جدول اليوم الدراسي القادم</h3><p class="tvhint">📭 لم تُحمّل خطة الأسبوع القادم بعد</p></div>`;
   else if(cf&&cf.day.holiday){if(ev)cls=`<div class="tvsec ev"><h3>${ctitle}</h3><p class="tvhint">🏖️ ${esc(cf.day.note||'إجازة')} — لا مدرسة</p></div>`}
@@ -227,7 +237,7 @@ function renderKid(){
     <div class="card"><h3>✅ مهام إضافية</h3>${tk.length?tk.map(item).join(''):'<p class="hint">لا توجد مهام إضافية. يضيفها ولي الأمر من 🔒</p>'}</div>
     <div class="wk-end">${extrasCard(plan)}</div>
   </div><div>
-    <div class="card"><h3>🏫 حصص يوم ${dayName(V.date)}</h3>${f?f.day.periods.map(pr=>`<div class="period"><span class="num">${pr.n}</span><div class="ptxt"><span class="subjlink" data-subj="${esc(subjectKey(pr.subject))}" title="ملخص المادة">${chip(pr.subject)}</span>${pr.replaced?`<small class="repl">بدلاً من ${esc(pr.replaced)}</small>`:''}<span dir="auto">${esc(pr.lesson)}</span>${bkB(k.id,V.date,pr.n,'lesson')}${wordsHtml(testWords(plan,pr))}</div>${isExamP(k.id,V.date,pr)?`<span class="badge">${pr.test?'اختبار قصير':'اختبار'}</span>`:''}</div>`).join(''):''}</div>
+    <div class="card"><h3>🏫 حصص يوم ${dayName(V.date)}</h3>${f?f.day.periods.map(pr=>`<div class="period"><span class="num">${pr.n}</span><div class="ptxt"><span class="subjlink" data-subj="${esc(subjectKey(pr.subject))}" title="ملخص المادة">${chip(pr.subject)}</span>${(()=>{const x=examForPeriod(k.id,V.date,pr);return x?`<small class="repl">📝 اختبار ${esc(x)}</small>`:''})()}<span dir="auto">${esc(pr.lesson)}</span>${bkB(k.id,V.date,pr.n,'lesson')}${wordsHtml(testWords(plan,pr))}</div>${isExamP(k.id,V.date,pr)?`<span class="badge">${pr.test?'اختبار قصير':'اختبار'}</span>`:''}</div>`).join(''):''}</div>
     <div class="wk-side">${extrasCard(plan)}</div>
   </div></div>`;
   return wrap(h);
@@ -360,7 +370,7 @@ function renderWeek(k,plan){
       const p=d.periods.find(x=>x.n===n);
       if(!p){h+=`<td></td>`;return}
       const id=`${k.id}|${d.date}|p${n}`,dn=!!S.done[id];
-      h+=`<td class="${d.date===t?'today':''}">${chip(p.subject)} ${isExamP(k.id,d.date,p)?`<span class="badge">${p.test?'اختبار قصير':'اختبار'}</span>`:''}${p.replaced?`<small class="repl">بدلاً من ${esc(p.replaced)}</small>`:''}<div dir="auto">${esc(p.lesson)}</div>${wordsHtml(testWords(plan,p))}${hasHw(p.homework)?`<button class="cellhw ${dn?'done':''}" data-toggle="${id}">${dn?'✅':'⬜'} <span dir="auto">${esc(p.homework)}</span></button>`:''}</td>`});
+      h+=`<td class="${d.date===t?'today':''}">${chip(p.subject)} ${isExamP(k.id,d.date,p)?`<span class="badge">${p.test?'اختبار قصير':'اختبار'}</span>`:''}${(()=>{const x=examForPeriod(k.id,d.date,p);return x?`<small class="repl">📝 اختبار ${esc(x)}</small>`:''})()}<div dir="auto">${esc(p.lesson)}</div>${wordsHtml(testWords(plan,p))}${hasHw(p.homework)?`<button class="cellhw ${dn?'done':''}" data-toggle="${id}">${dn?'✅':'⬜'} <span dir="auto">${esc(p.homework)}</span></button>`:''}</td>`});
     h+='</tr>';
   }
   h+='</table></div>';
@@ -821,7 +831,8 @@ function saveExamReview(){
 const examKey=(kid,e,set)=>`ex|${kid}|${set&&set.id||''}|${e.date}|${subjectKey(e.subject)}`;
 function kidExams(kid){const out=[];(S.examSets||[]).filter(s=>s.kid===kid).forEach(s=>s.exams.forEach(e=>out.push(Object.assign({set:s,key:examKey(kid,e,s)},e))));return out.sort((a,b)=>a.date.localeCompare(b.date))}
 function officialFor(kid,date,subj){return kidExams(kid).find(e=>e.date===date&&subjectKey(e.subject)===subjectKey(subj))}
-function isExamP(kid,date,p){return !!(p.test||officialFor(kid,date,p.subject))}
+function examForPeriod(kid,date,p){const s=examNameIn(p);return s&&subjectKey(s)!==subjectKey(p.subject)&&officialFor(kid,date,s)?s:null}
+function isExamP(kid,date,p){return !!(p.test||officialFor(kid,date,p.subject)||examForPeriod(kid,date,p))}
 function planTests(kid){const out=[];allDays(kid).forEach(({plan,day})=>day.periods.forEach(p=>{if(p.test&&!officialFor(kid,day.date,p.subject))out.push({date:day.date,subject:p.subject,title:p.lesson,key:`${kid}|${day.date}|p${p.n}`,spell:testWords(plan,p)})}));return out}
 const daysTo=d=>Math.round((pd(d)-pd(todayKey()))/864e5);
 function whenTxt(d){const n=daysTo(d);return n===0?'اليوم':n===1?'غداً':n===2?'بعد غد':n>2?(n<=10?'بعد '+n+' أيام':'بعد '+n+' يوماً'):'انتهى'}
