@@ -150,14 +150,15 @@ function tvKid(k){
   // classes: the shown day, or from 5 PM to 7 AM the next school day (so the bag can be packed the night before) — then it goes on top
   const ev=tvEvening(),nd=ev&&tvNextDay(k.id),cd=nd||date,cf=findDay(k.id,cd),cplan=planFor(k.id,cd)||plan,cn=daysTo(cd);
   const ctitle=ev?`🎒 جدول ${cn===1?'الغد':cn===0?'اليوم':'يوم '+dayName(cd)} · ${dayName(cd)} ${fmt(cd)}`:'🏫 الحصص';
-  const per=pr=>{const b=isEng(pr.subject)&&englishBook(k,pr,cplan);return`<span class="tvp ${isExamP(k.id,cd,pr)?'x':''}" style="--c:${subjColor(pr.subject)}" dir="auto">${subjIcon(pr.subject)} ${esc(pr.subject)}${b?' · '+esc(b):''}${(()=>{const x=examForPeriod(k.id,cd,pr);return x?` · 📝 ${esc(x)}`:''})()}</span>`};
+  const per=pr=>{const x=examForPeriod(k.id,cd,pr);if(x)return`<span class="tvp x" style="--c:${subjColor(x)}" dir="auto">📝 اختبار ${esc(x)}<small class="tvpsub">حصة ${esc(pr.subject)}</small></span>`;
+    const b=isEng(pr.subject)&&englishBook(k,pr,cplan);return`<span class="tvp ${isExamP(k.id,cd,pr)?'x':''}" style="--c:${subjColor(pr.subject)}" dir="auto">${subjIcon(pr.subject)} ${esc(pr.subject)}${b?' · '+esc(b):''}</span>`};
   let cls='';
   if(ev&&!nd)cls=`<div class="tvsec ev"><h3>🎒 جدول اليوم الدراسي القادم</h3><p class="tvhint">📭 لم تُحمّل خطة الأسبوع القادم بعد</p></div>`;
   else if(cf&&cf.day.holiday){if(ev)cls=`<div class="tvsec ev"><h3>${ctitle}</h3><p class="tvhint">🏖️ ${esc(cf.day.note||'إجازة')} — لا مدرسة</p></div>`}
   else if(cf&&cf.day.periods.length)cls=`<div class="tvsec ${ev?'ev':''}"><h3>${ctitle}</h3><div class="tvper">${cf.day.periods.map(per).join('')}</div></div>`;
   if(ev)h+=cls;
   // announcements: official exams in the next 7 days, then dictation / spelling / quizzes from the plan (the day before and the morning of)
-  h+=upcomingExams(k.id,t,7).map(e=>`<div class="tvalert exam ${daysTo(e.date)===0?'soon':''}"><b>📝 ${whenTxt(e.date)} (${dayName(e.date)}): اختبار ${esc(e.subject)}${e.type?' — '+esc(e.type):''}</b>${e.parts.length?`<div class="xparts">${e.parts.map(x=>`<span dir="auto">${esc(x)}</span>`).join('')}</div>`:''}</div>`).join('');
+  h+=upcomingExams(k.id,t,7).map(e=>`<div class="tvalert exam ${daysTo(e.date)===0?'soon':''}"><b>📝 ${whenTxt(e.date)} (${dayName(e.date)}): اختبار ${esc(e.subject)}${e.type?' — '+esc(e.type):''}</b>${movedTxt(e)?`<div class="tvdet">📅 ${movedTxt(e)}</div>`:''}${e.parts.length?`<div class="xparts">${e.parts.map(x=>`<span dir="auto">${esc(x)}</span>`).join('')}</div>`:''}</div>`).join('');
   h+=tvTests(k).map(x=>{const eng=isEng(x.p.subject),dict=/إملاء|املاء/.test(x.p.lesson+' '+x.p.homework),n=daysTo(x.date);
     const what=eng&&/spell/i.test(x.p.lesson+' '+x.p.homework)?`Spelling quiz${x.book?' · '+esc(x.book):''}`:dict?`إملاء ${esc(x.p.subject)}`:`اختبار ${esc(x.p.subject)}`;
     const det=eng?'':[x.p.lesson,x.p.homework].filter(s=>s&&!isEmptyCell(s)).map(esc).join(' — ');
@@ -229,7 +230,7 @@ function renderKid(){
   h+=`<div class="cols dayc"><div>
     ${f&&noteOk(f.day.note)?`<div class="note">📢 ${esc(f.day.note)}</div>`:''}
     ${(()=>{const ds=plan.days.map(d=>d.date).sort(),i=ds.indexOf(V.date),nx=i>=0?plan.days.find(d=>d.date===ds[i+1]):null;return nx&&nx.holiday?`<div class="holiday small"><div class="holsun">🏖️</div><div><b>غداً ${esc(nx.note||'إجازة')}</b><span>لا مدرسة يوم ${dayName(nx.date)}</span></div></div>`:''})()}
-    ${upcomingExams(k.id,V.date,3).map(e=>{const n=Math.round((pd(e.date)-pd(V.date))/864e5);return`<div class="testbox exam"><b>${n===0?'📝 اليوم':n===1?'⏰ غداً ('+dayName(e.date)+')':'📅 بعد '+n+' أيام ('+dayName(e.date)+')'}: اختبار ${esc(e.subject)}${e.type?' — '+esc(e.type):''}</b>${e.parts.length?`<div class="hint" style="margin-top:4px">${n===0?'الجزء المقرر':'راجع'}:</div><div class="xparts">${e.parts.map(p=>`<span dir="auto">${esc(p)}</span>`).join('')}</div>`:''}</div>`}).join('')}
+    ${upcomingExams(k.id,V.date,3).map(e=>{const n=Math.round((pd(e.date)-pd(V.date))/864e5);return`<div class="testbox exam"><b>${n===0?'📝 اليوم':n===1?'⏰ غداً ('+dayName(e.date)+')':'📅 بعد '+n+' أيام ('+dayName(e.date)+')'}: اختبار ${esc(e.subject)}${e.type?' — '+esc(e.type):''}</b>${movedTxt(e)?`<div class="hint">📅 ${movedTxt(e)}</div>`:''}${e.parts.length?`<div class="hint" style="margin-top:4px">${n===0?'الجزء المقرر':'راجع'}:</div><div class="xparts">${e.parts.map(p=>`<span dir="auto">${esc(p)}</span>`).join('')}</div>`:''}</div>`}).join('')}
     ${upcomingTests(plan,V.date).map(x=>`<div class="testbox"><b>${x.today?'📝 اليوم':'⏰ غداً ('+dayName(x.date)+')'}: اختبار ${esc(x.p.subject)} — <span dir="auto">${esc(x.p.lesson)}</span></b>${x.words?`<div class="hint" style="margin-top:4px">${x.today?'كلمات الإملاء':'راجع كلمات الإملاء الليلة'}:</div>${wordsHtml(x.words)}`:''}</div>`).join('')}
     <div class="card"><div class="progress"><b>أنجزت ${dn} من ${its.length}</b><div class="bar"><i style="width:${p}%"></i></div><span class="stars">⭐ ${ws.stars}</span></div>
     ${its.length&&dn===its.length?`<div class="bravo">🎉 أحسنت يا ${esc(k.name)}! أنهيت كل مهام ${dayName(V.date)}</div>`:''}</div>
@@ -237,7 +238,7 @@ function renderKid(){
     <div class="card"><h3>✅ مهام إضافية</h3>${tk.length?tk.map(item).join(''):'<p class="hint">لا توجد مهام إضافية. يضيفها ولي الأمر من 🔒</p>'}</div>
     <div class="wk-end">${extrasCard(plan)}</div>
   </div><div>
-    <div class="card"><h3>🏫 حصص يوم ${dayName(V.date)}</h3>${f?f.day.periods.map(pr=>`<div class="period"><span class="num">${pr.n}</span><div class="ptxt"><span class="subjlink" data-subj="${esc(subjectKey(pr.subject))}" title="ملخص المادة">${chip(pr.subject)}</span>${(()=>{const x=examForPeriod(k.id,V.date,pr);return x?`<small class="repl">📝 اختبار ${esc(x)}</small>`:''})()}<span dir="auto">${esc(pr.lesson)}</span>${bkB(k.id,V.date,pr.n,'lesson')}${wordsHtml(testWords(plan,pr))}</div>${isExamP(k.id,V.date,pr)?`<span class="badge">${pr.test?'اختبار قصير':'اختبار'}</span>`:''}</div>`).join(''):''}</div>
+    <div class="card"><h3>🏫 حصص يوم ${dayName(V.date)}</h3>${f?f.day.periods.map(pr=>`<div class="period"><span class="num">${pr.n}</span><div class="ptxt">${(()=>{const x=examForPeriod(k.id,V.date,pr);return x?`<span class="subjlink" data-subj="${esc(subjectKey(x))}" title="ملخص المادة">${chip(x)}</span><small class="repl">حصة ${esc(pr.subject)}</small>`:`<span class="subjlink" data-subj="${esc(subjectKey(pr.subject))}" title="ملخص المادة">${chip(pr.subject)}</span>`})()}<span dir="auto">${esc(pr.lesson)}</span>${bkB(k.id,V.date,pr.n,'lesson')}${wordsHtml(testWords(plan,pr))}</div>${isExamP(k.id,V.date,pr)?`<span class="badge">${pr.test?'اختبار قصير':'اختبار'}</span>`:''}</div>`).join(''):''}</div>
     <div class="wk-side">${extrasCard(plan)}</div>
   </div></div>`;
   return wrap(h);
@@ -370,7 +371,7 @@ function renderWeek(k,plan){
       const p=d.periods.find(x=>x.n===n);
       if(!p){h+=`<td></td>`;return}
       const id=`${k.id}|${d.date}|p${n}`,dn=!!S.done[id];
-      h+=`<td class="${d.date===t?'today':''}">${chip(p.subject)} ${isExamP(k.id,d.date,p)?`<span class="badge">${p.test?'اختبار قصير':'اختبار'}</span>`:''}${(()=>{const x=examForPeriod(k.id,d.date,p);return x?`<small class="repl">📝 اختبار ${esc(x)}</small>`:''})()}<div dir="auto">${esc(p.lesson)}</div>${wordsHtml(testWords(plan,p))}${hasHw(p.homework)?`<button class="cellhw ${dn?'done':''}" data-toggle="${id}">${dn?'✅':'⬜'} <span dir="auto">${esc(p.homework)}</span></button>`:''}</td>`});
+      h+=`<td class="${d.date===t?'today':''}">${(()=>{const x=examForPeriod(k.id,d.date,p);return x?`${chip(x)} <span class="badge">اختبار</span><small class="repl">حصة ${esc(p.subject)}</small>`:`${chip(p.subject)} ${isExamP(k.id,d.date,p)?`<span class="badge">${p.test?'اختبار قصير':'اختبار'}</span>`:''}`})()}<div dir="auto">${esc(p.lesson)}</div>${wordsHtml(testWords(plan,p))}${hasHw(p.homework)?`<button class="cellhw ${dn?'done':''}" data-toggle="${id}">${dn?'✅':'⬜'} <span dir="auto">${esc(p.homework)}</span></button>`:''}</td>`});
     h+='</tr>';
   }
   h+='</table></div>';
@@ -828,7 +829,8 @@ function saveExamReview(){
   S.examSets.push({id:Date.now().toString(36),kid:P.kid,period:P.period,title:P.title,grade:P.grade,instructions:P.instructions,exams:ex});save();
   closeModal();PENDING=null;QSAVED++;toast('✅ تم حفظ جدول الاختبارات لـ '+kidById(P.kid).name);render();nextReview();
 }
-const examKey=(kid,e,set)=>`ex|${kid}|${set&&set.id||''}|${e.date}|${subjectKey(e.subject)}`;
+const examKey=(kid,e,set)=>`ex|${kid}|${set&&set.id||''}|${e.orig||e.date}|${subjectKey(e.subject)}`;
+const movedTxt=e=>e.orig&&e.orig!==e.date?`مؤجّل من ${dayName(e.orig)} ${fmt(e.orig)}`:'';
 function kidExams(kid){const out=[];(S.examSets||[]).filter(s=>s.kid===kid).forEach(s=>s.exams.forEach(e=>out.push(Object.assign({set:s,key:examKey(kid,e,s)},e))));return out.sort((a,b)=>a.date.localeCompare(b.date))}
 function officialFor(kid,date,subj){return kidExams(kid).find(e=>e.date===date&&subjectKey(e.subject)===subjectKey(subj))}
 function examForPeriod(kid,date,p){const s=examNameIn(p);return s&&subjectKey(s)!==subjectKey(p.subject)&&officialFor(kid,date,s)?s:null}
@@ -856,9 +858,9 @@ function renderExams(k){
   const sets=(S.examSets||[]).filter(s=>s.kid===k.id).slice().sort((a,b)=>(b.exams[0]?.date||'').localeCompare(a.exams[0]?.date||''));
   sets.forEach(s=>{
     h+=`<div class="card"><div class="kidhead" style="margin-bottom:10px"><h3 style="margin:0">📝 ${esc(s.period||s.title)}</h3>${s.period&&s.period!==s.title?`<span class="hint">${esc(s.title)}</span>`:''}<div class="sp"></div>${(()=>{const a=kidAverage(k.id,s);return a?`<span class="setavg" style="--g:${rating(a.avg)[1]}">المعدل ${a.avg}%</span>`:''})()}${parentOK?`<button class="btn sm danger" data-act="delExamSet" data-id="${s.id}">حذف الجدول</button>`:''}</div><div class="xlist">`;
-    s.exams.forEach(e=>{const key=examKey(k.id,e,s),n=daysTo(e.date),c=subjColor(e.subject);
+    s.exams.forEach((e,ei)=>{const key=examKey(k.id,e,s),n=daysTo(e.date),c=subjColor(e.subject);
       h+=`<div class="xcard ${n<0?'past':n===0?'now':''}" style="--c:${c}"><div class="xdate"><b>${pd(e.date).getDate()}</b><span>${dayName(e.date)}</span><small>${fmt(e.date,{month:'long'})}</small></div>
-      <div class="xbody"><div class="xtitle"><span class="sumic">${subjIcon(e.subject)}</span><b class="subjlink" data-subj="${esc(subjectKey(e.subject))}" dir="auto">${esc(e.subject)}</b>${e.type?`<span class="xtype ${/تكوين/.test(e.type)?'f':''}">${esc(e.type)}</span>`:''}<span class="xwhen">${whenTxt(e.date)}</span></div>
+      <div class="xbody"><div class="xtitle"><span class="sumic">${subjIcon(e.subject)}</span><b class="subjlink" data-subj="${esc(subjectKey(e.subject))}" dir="auto">${esc(e.subject)}</b>${e.type?`<span class="xtype ${/تكوين/.test(e.type)?'f':''}">${esc(e.type)}</span>`:''}<span class="xwhen">${whenTxt(e.date)}</span>${movedTxt(e)?`<span class="xmoved">📅 ${movedTxt(e)}</span>`:''}${parentOK?`<button class="btn sm" data-act="moveExam" data-id="${s.id}" data-i="${ei}">✏️ تغيير الموعد</button>`:''}</div>
       ${e.parts.length?`<div class="xparts">${e.parts.map(p=>`<span dir="auto">${esc(p)}</span>`).join('')}</div>`:''}</div>
       <div class="xgrade">${gradeBlock(key,e.subject,e.date)}</div></div>`});
     h+=`</div>${s.instructions&&s.instructions.length?`<details class="xins"><summary>📋 تعليمات عامة</summary><ol>${s.instructions.map(x=>`<li>${esc(x)}</li>`).join('')}</ol></details>`:''}</div>`;
@@ -897,6 +899,17 @@ async function act(a,el){
   if(a==='saveExam')return saveExamReview();
   if(a==='addExamRow'){collectExam();PENDING.exams.push({date:'',subject:'',type:'',parts:[]});return drawExamReview()}
   if(a==='delExamRow'){collectExam();PENDING.exams.splice(+el.dataset.i,1);return drawExamReview()}
+  if(a==='moveExam'){const s=S.examSets.find(x=>x.id===el.dataset.id),e=s&&s.exams[+el.dataset.i];if(!e)return;
+    document.getElementById('layer').innerHTML=`<div class="overlay"><div class="modal"><h3>✏️ تغيير موعد اختبار ${esc(e.subject)}</h3>
+      <p class="hint" style="margin:0">الموعد الحالي: ${dayName(e.date)} ${fmt(e.date)}${e.orig&&e.orig!==e.date?` · الموعد الأصلي: ${dayName(e.orig)} ${fmt(e.orig)}`:''}</p>
+      <label class="hint">الموعد الجديد<input type="date" id="mvDate" value="${e.date}" style="width:100%;font-size:18px;letter-spacing:0;text-align:start"></label>
+      <div class="mrow">${e.orig&&e.orig!==e.date?`<button class="btn" data-act="moveExamSave" data-id="${s.id}" data-i="${el.dataset.i}" data-reset="1">↩️ الموعد الأصلي</button>`:''}<button class="btn" data-act="closeModal">إلغاء</button><button class="btn primary" data-act="moveExamSave" data-id="${s.id}" data-i="${el.dataset.i}">حفظ</button></div></div></div>`;return}
+  if(a==='moveExamSave'){const s=S.examSets.find(x=>x.id===el.dataset.id),e=s&&s.exams[+el.dataset.i];if(!e)return closeModal();
+    const orig=e.orig||e.date,nd=el.dataset.reset?orig:(document.getElementById('mvDate').value||'');
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(nd))return toast('اختر التاريخ');
+    if(nd===orig)delete e.orig;else e.orig=orig;e.date=nd;
+    s.exams.sort((a,b)=>a.date.localeCompare(b.date));save();closeModal();render();
+    return toast(nd===orig?'↩️ أُعيد الاختبار لموعده الأصلي':'✅ تم تغيير الموعد إلى '+dayName(nd)+' '+fmt(nd))}
   if(a==='delExamSet'){if(!confirm('حذف جدول الاختبارات؟ (الدرجات المحفوظة تبقى)'))return;S.examSets=S.examSets.filter(s=>s.id!==el.dataset.id);save();return render()}
   if(a==='pinHere')return askPin(Object.assign({},V));
   if(a==='saveGrade'){const k=el.dataset.key,q=s=>[...document.querySelectorAll(s)].find(x=>x.dataset.gs===k||x.dataset.gm===k);

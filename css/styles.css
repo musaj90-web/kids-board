@@ -308,3 +308,7 @@ body.tvmode main{max-width:none;padding:0}
 .tvhw .bkbtn{font-size:calc(var(--u)*.95);padding:0 calc(var(--u)*.7)}
 .bvnav{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .modal.big .bvnav input{width:80px;text-align:center}
+/* exam held in another subject's period; rescheduled exams */
+.tvpsub{display:block;font-size:.62em;font-weight:600;opacity:.75;margin-top:2px}
+.tvp.x{display:inline-flex;flex-direction:column;align-items:flex-start;border-radius:calc(var(--u)*.8)}
+.xmoved{font-size:13px;font-weight:700;color:#7c2d12;background:#ffedd5;border-radius:99px;padding:0 10px}
